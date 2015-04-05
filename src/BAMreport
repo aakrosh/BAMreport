@@ -21,6 +21,8 @@ from getopt import getopt, GetoptError
 from tempfile import mkstemp
 from os import remove, close
 import numpy as np
+import matplotlib
+matplotlib.use('Agg') 
 from matplotlib.backends.backend_pdf import PdfPages
 import matplotlib.pyplot as plt
 import os 
