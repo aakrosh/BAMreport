@@ -1,0 +1,13 @@
+Installation
+============
+this program requires the following libraries to compile:
+
+	zlib (http://www.zlib.net/)
+	Boost Libraries (http://www.boost.org/)
+
+Buliding:
+
+	% ./configure --prefix=/my/dir
+	% make
+	% make install
+

@@ -1,0 +1,12 @@
+Usage:  gc_coverage_bias [options] <*.soap.coverage>
+Option: -r <string>     a reference sequence file about FA format
+        -c <string>     the designated chromosome id list file, one id per line, without settings, processing all the reference sequence
+        -o <string>     the prefix about output file
+        -w <string>     the window length[such as:100,200,300]
+        --gcdump        output the gc ratio in the window length
+        --depwindump    output the avg depth in the window length
+
+
+Example:
+       ./gc_coverage_bias -r test.fa -o test -w 40,50 [--gcdump --depwindump] test.depth
+

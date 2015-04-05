@@ -1,0 +1,219 @@
+#!/usr/bin/env python
+
+"""
+    usage:
+        BAMreports [options] reference.fa alignments.bam
+
+    where the options are:
+        -h,--help : print usage and quit
+        -d,--debug: print debug information
+        -c,--coverage: print the coverage statistics into this text file
+        -o,--output: print the report in this PDF file
+        -w,--windowsize : use a window size of this to calculate GC bias
+
+    By default:
+        The statistics are collected in tempfiles which are deleted once the 
+        report is written to a file called "report.pdf"
+"""
+
+from sys import argv, stderr, stdin, exit, stdout
+from getopt import getopt, GetoptError
+from tempfile import mkstemp
+from os import remove, close
+import numpy as np
+from matplotlib.backends.backend_pdf import PdfPages
+import matplotlib.pyplot as plt
+import os 
+
+import bamreport
+
+__author__ = "Aakrosh Ratan"
+__email__  = "ratan@bx.psu.edu"
+
+# do we want the debug information to be printed?
+debug_flag = False
+
+def main(refName, alnName, windowsize, output, covName):
+    # random filenames to write the various temp files 
+    rl,rlp = mkstemp() 
+    qu,qup = mkstemp() 
+    nu,nup = mkstemp() 
+    if covName == None:
+        co,cop = mkstemp() 
+    else:
+        cop = covName
+        co = os.open(cop, os.O_RDWR|os.O_CREAT)
+    ia,inp = mkstemp() 
+    gc,gcp = mkstemp() 
+    st,stp = mkstemp() 
+
+    bamreport.bamreports(refName, alnName, rlp, qup, nup, cop, inp, gcp, stp, windowsize)  
+
+    # prepare the report
+    plt.ioff()
+    size = (11.69, 8.27)
+    cutoff = 99.0
+
+    with PdfPages(output) as pdf:
+        # nucleotide composition
+        plt.figure(figsize = size)
+        file = open(nup, "r")
+        data = [x.strip() for x in file.readlines()]
+        file.close()
+        f, axarr = plt.subplots(5,2)
+        f.suptitle('Nucleotide composition (Frequency of A,C,G,T,N with read position)')
+        f.text(0.27,0.93,'Read 1')
+        f.text(0.70,0.93,'Read 2')
+        for i in xrange(0,5):
+            r = [int(x.split()[2+i])*1.0/int(x.split()[7]) for x in data if x.split()[0] == '1']
+            axarr[i,0].bar(range(0, len(r)), r)
+            axarr[i,0].set_ylabel('Fraction of reads', fontsize = 8)
+            axarr[i,0].set_ylim(0.0,1.0)
+            axarr[i,0].set_xlabel('Position on read', fontsize = 8)
+            r = [int(x.split()[2+i])*1.0/int(x.split()[7]) for x in data if x.split()[0] == '2']
+            axarr[i,1].bar(range(0, len(r)), r)
+            axarr[i,1].set_ylabel('Fraction of reads', fontsize = 8)
+            axarr[i,1].set_ylim(0.0,1.0)
+            axarr[i,1].set_xlabel('Position on read', fontsize = 8)
+        pdf.savefig()  
+        plt.close()
+
+        # read length distribution
+        plt.figure(figsize=size)
+        file = open(rlp, "r")
+        data = [x.strip() for x in file.readlines()]
+        file.close()
+        f, axarr = plt.subplots(1,2)
+        f.suptitle('Read length distribution')
+        f.text(0.27,0.93,'Read 1')
+        f.text(0.70,0.93,'Read 2')
+        r = [int(x.split()[2]) for x in data if x.split()[0] == '1']
+        axarr[0].set_xlim(0,len(r))
+        axarr[0].bar(range(0,len(r)), r)
+        axarr[0].set_xlabel('Read length')
+        axarr[0].set_ylabel('Frequency')
+        r = [int(x.split()[2]) for x in data if x.split()[0] == '2']
+        axarr[1].bar(range(0,len(r)),r)
+        axarr[1].set_xlim(0,len(r))
+        axarr[1].set_xlabel('Read length')
+        axarr[1].set_ylabel('Frequency')
+        pdf.savefig()  
+        plt.close()
+
+        # mapping stats
+        plt.figure(figsize=size)
+        f, axarr = plt.subplots(2,1)
+        file = open(stp, "r")
+        string = "\n".join(file.readlines())
+        file.close()
+        axarr[0].axis('off')
+        axarr[0].text(0,-1.5,string)
+        axarr[1].axis('off')
+        pdf.savefig()
+        plt.close()
+
+        # coverage distribution
+        plt.figure(figsize=size)
+        plt.title('Depth-of-coverage distribution')
+        file = open(cop, "r")
+        data = [x.strip() for x in file.readlines()]
+        xdata = [int(x.split()[0]) for x in data]
+        ydata = [int(x.split()[1]) for x in data]
+        ysum = sum(ydata)
+        ydata = [x*1.0/ysum for x in ydata]   
+        file.close()
+        plt.plot(xdata[1:],ydata[1:])
+        plt.xlabel('Coverage')
+        plt.ylabel('Fraction of genome covered')
+        y = 0
+        for i,d in enumerate(ydata):
+            y += d
+            if y > cutoff/100:
+                break
+        plt.xlim(0,xdata[i])
+        pdf.savefig()  
+        plt.close()
+
+        # GC coverage distribution
+        plt.figure(figsize=size)
+        plt.title('GC coverage')
+        file = open(gcp, "r")
+        data = [x.strip() for x in file.readlines()]
+        xdata = [float(x.split()[3]) for x in data]
+        ydata = [float(x.split()[4]) for x in data]
+        file.close()
+        plt.scatter(xdata, ydata, alpha = 0.3)
+        plt.xlim(0,1)
+        plt.ylim(0,np.percentile(ydata, cutoff))
+        plt.xlabel('GC content in %d bp windows' % windowsize)
+        plt.ylabel('Mean coverage in %d bp windows' % windowsize)
+        pdf.savefig()  
+        plt.close()
+
+        # insert size distribution
+        plt.figure(figsize=size)
+        plt.title('Insert size distribution')
+        file = open(inp, "r")
+        data = [x.strip() for x in file.readlines()]
+        xdata = [int(x.split()[0]) for x in data]
+        ydata = [int(x.split()[1]) for x in data]
+        ysum = sum(ydata)
+        ydata = [x*1.0/ysum for x in ydata]   
+        plt.plot(xdata,ydata)
+        y = 0
+        for i,d in enumerate(ydata):
+            y += d
+            if y > cutoff/100:
+                break
+        plt.xlim(0,xdata[i])
+        plt.xlabel('Outer insert distance') 
+        plt.ylabel('Fraction of aligned pairs')
+        pdf.savefig()  
+        plt.close()
+
+       
+
+    # remove the temp files
+    files=[rl,qu,nu,co,ia,gc,st]
+    for file in files:
+        close(file)
+        
+
+    files=[rlp,qup,nup,inp,gcp,stp]
+    for file in files:
+        remove(file)
+    if covName == None:
+        remove(cop)
+
+if __name__ == "__main__":
+    try:
+        opts, args = getopt(argv[1:], "hdw:o:c:",["help", "debug", "windowsize=", "output=", "coverage="])
+    except GetoptError, err:
+        print str(err)
+        print >> stderr, __doc__
+        exit(2) 
+
+    windowsize = 1000000
+    output = "report.pdf"
+    covName = None
+
+    for o, a in opts:
+        if o in ("-h", "--help"):
+            print >> stderr, __doc__
+            exit()
+        elif o in ("-d", "--debug"):
+            debug_flag = True
+        elif o in ("-w", "--windowsize"):
+            windowsize = int(a)
+        elif o in ("-o", "--output"):
+            output = a
+        elif o in ("-c", "--coverage"):
+            covName = a
+        else:
+            assert False, "unhandled option"
+
+    if len(args) != 2:
+        print >> stderr, __doc__
+        exit(3)
+
+    main(args[0], args[1], windowsize, output, covName)
