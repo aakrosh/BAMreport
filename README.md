@@ -1,5 +1,6 @@
 # BAMreport
-Report on a BAM file
+Report on a BAM file. Generate a PDF report from the given BAM file and the
+FASTA reference sequence.
 
 ## REQUIREMENTS
 These tools should work on any standard 64 bit Linux environment with
