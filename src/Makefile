@@ -23,7 +23,7 @@ all: asserts.h runtime.h runtime.c time.h time.c errors.h errors.c constants.h m
 	$(CC) $(CFLAGS) -c hashtable.c
 	$(CC) $(CFLAGS) -c -I$(INCDIR1) -L$(LNKDIR1) bamreport.c -lbam -lz -lm
 	gcc -shared -fPIC -o libBAMreport.so *.o -L$(LNKDIR1) -lbam -lz -lm
-	echo "Add libBAMreport.so to your PYTHONPATH so that python can find it"
+	@echo "Add libBAMreport.so to your PYTHONPATH so that python can find it"
 
 .PHONY : clean
 
