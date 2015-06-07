@@ -555,9 +555,6 @@ void calcbamstats(const char* const refname,
     uint64_t* insertlenfrequency = ckallocz(maxinsertsize * sizeof(uint64_t));
     //timestamp("Allocated the required memory\n");
 
-    // store the alignment length distribution here
-    uint64_t* alignmentfrequency = ckallocz(maxreadlength * sizeof(uint64_t));
-
     int ret;
     uint64_t numread = 0;
     while((ret = bam_read1(fp, alignment)) >= 0){
@@ -639,8 +636,6 @@ void calcbamstats(const char* const refname,
                 nuc1counts[i] = ckallocz(5 * sizeof(uint64_t));
                 nuc2counts[i] = ckallocz(5 * sizeof(uint64_t));
             }
-            alignmentfrequency = ckrealloc(alignmentfrequency,
-                                      alignment->core.l_qseq * sizeof(uint64_t));
 
             maxreadlength = alignment->core.l_qseq;
         }
@@ -759,8 +754,6 @@ void calcbamstats(const char* const refname,
             int pos1 = alignment->core.pos;
             int pos2 = bam_calend(&alignment->core, bam1_cigar(alignment)); 
             
-            alignmentfrequency[(pos2-pos1)] += 1;
-
             chrcoverage* cov = must_find_hashtable(reference,
                                hin->target_name[alignment->core.tid],
                                strlen(hin->target_name[alignment->core.tid]));
