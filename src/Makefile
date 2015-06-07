@@ -21,7 +21,7 @@ all: asserts.h runtime.h runtime.c time.h time.c errors.h errors.c constants.h m
 	$(CC) $(CFLAGS) -c sequences.c
 	$(CC) $(CFLAGS) -c slinklist.c
 	$(CC) $(CFLAGS) -c hashtable.c
-	$(CC) $(CFLAGS) -I$(INCDIR1) -L$(LNKDIR1) -o bamstats *.o bamstats.c -lbam -lz -lm
+	$(CC) $(CFLAGS) -I$(INCDIR1) -L$(LNKDIR1) -o bamstats *.o bamstats.c -lbam -lz -lm -lpthread
 
 .PHONY : clean
 
