@@ -4,13 +4,13 @@ Report on a BAM file.
 BAMreport creates a directory (which can be user specified) and puts all the 
 output files in it. The output files include the following:
 
-1) stats.txt : Alignment statistics
-2) nucleotides.pdf : Nucleotide composition vs. position on sequence
-3) quality.pdf : Base quality vs position on sequence
-4) coverage.pdf : Depth of coverage distribution
-5) gccoverage.png : Variation of GC and coverage 
-6) insertlengths.pdf : Insert length distribution
-7) readlengths.pdf : Variation of read lengths
+* stats.txt : Alignment statistics
+* nucleotides.pdf : Nucleotide composition vs. position on sequence
+* quality.pdf : Base quality vs position on sequence
+* coverage.pdf : Depth of coverage distribution
+* gccoverage.png : Variation of GC and coverage 
+* insertlengths.pdf : Insert length distribution
+* readlengths.pdf : Variation of read lengths
 
 ## REQUIREMENTS
 These tools should work on any standard 64 bit Linux environment with
