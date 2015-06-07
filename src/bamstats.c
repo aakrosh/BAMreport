@@ -487,19 +487,19 @@ static void  print_gccoverage(const char* const gccovname,
 }
 
 
-void bamreports(const char* const refname,
-                const char* const bamname,
-                const char* const rlensname,
-                const char* const qualsname,
-                const char* const nucsname,
-                const char* const covname,
-                const char* const insname,
-                const char* const gccovname,
-                const int windowsize,
-                const char* const statsname,
-                const char* const readstarts,
-                const char* const readgroups,
-                const bool allinsertlengths)
+void calcbamstats(const char* const refname,
+                  const char* const bamname,
+                  const char* const rlensname,
+                  const char* const qualsname,
+                  const char* const nucsname,
+                  const char* const covname,
+                  const char* const insname,
+                  const char* const gccovname,
+                  const int windowsize,
+                  const char* const statsname,
+                  const char* const readstarts,
+                  const char* const readgroups,
+                  const bool allinsertlengths)
 {
     // lets read the reference sequence. The reference sequence will be a
     // hashtable where the key is the name of the chromosome and the value will
@@ -554,6 +554,9 @@ void bamreports(const char* const refname,
     int maxinsertsize = 1;
     uint64_t* insertlenfrequency = ckallocz(maxinsertsize * sizeof(uint64_t));
     //timestamp("Allocated the required memory\n");
+
+    // store the alignment length distribution here
+    uint64_t* alignmentfrequency = ckallocz(maxreadlength * sizeof(uint64_t));
 
     int ret;
     uint64_t numread = 0;
@@ -636,6 +639,8 @@ void bamreports(const char* const refname,
                 nuc1counts[i] = ckallocz(5 * sizeof(uint64_t));
                 nuc2counts[i] = ckallocz(5 * sizeof(uint64_t));
             }
+            alignmentfrequency = ckrealloc(alignmentfrequency,
+                                      alignment->core.l_qseq * sizeof(uint64_t));
 
             maxreadlength = alignment->core.l_qseq;
         }
@@ -753,6 +758,9 @@ void bamreports(const char* const refname,
         if(((alignment->core.flag & 0x400) != 0x400) && (reference != NULL)){
             int pos1 = alignment->core.pos;
             int pos2 = bam_calend(&alignment->core, bam1_cigar(alignment)); 
+            
+            alignmentfrequency[(pos2-pos1)] += 1;
+
             chrcoverage* cov = must_find_hashtable(reference,
                                hin->target_name[alignment->core.tid],
                                strlen(hin->target_name[alignment->core.tid]));
@@ -802,134 +810,134 @@ void bamreports(const char* const refname,
     }
 }
 
-//int main(int argc, char** argv)
-//{
-//    argv0 = "bamreports";
-//    int c;
-//
-//    char* rlensname = NULL;
-//    char* qualsname = NULL;
-//    char* nucsname  = NULL;
-//    char* covname   = NULL;
-//    char* insname   = NULL;
-//    char* gccovname = NULL;
-//    char* statsname = NULL;
-//    int windowsize  = 1000000;
-//    char* readstarts= NULL;
-//    char* readgroups = NULL;
-//    nowarnings = FALSE;
-//
-//    // by default I only include the properly paired reads in the insert length
-//    // distribution. But in some cases (like damaged ancient reads), very few
-//    // reads get marked as "properly paired" since BWA does not find enough
-//    // pairs to calculate the mean and sd values that should be called as
-//    // properly paired. In those cases I would want to include all pairs in this
-//    // calculation. Of course that means all pairs where both ends mapped.
-//    bool allinsertlengths = FALSE;
-//
-//    while (1){
-//        static struct option long_options[] = {
-//            {"debug"   , no_argument , 0, 'd'},
-//            {"rlens"   , required_argument, 0, 'l'},
-//            {"rqual"   , required_argument, 0, 'q'},
-//            {"rnucs"   , required_argument, 0, 'n'},
-//            {"rcovs"   , required_argument, 0, 'c'},
-//            {"rinst"   , required_argument, 0, 'i'},
-//            {"gccov"   , required_argument, 0, 'g'},  
-//            {"stats"   , required_argument, 0, 's'},
-//            {"wsize"   , required_argument, 0, 'w'},
-//            {"run"     , required_argument, 0, 'r'},
-//            {"rallinst", no_argument,       0, 'a'},
-//            {"nowarn"  , no_argument,       0, 'f'},
-//            {"rg"      , required_argument, 0, 'x'},
-//            {0, 0, 0, 0}
-//        };
-//    
-//        int option_index = 0;
-//        c = getopt_long(argc, argv, "dl:q:n:c:i:g:s:w:r:afx:",
-//                        long_options, &option_index);
-//
-//        if (c == -1) break;
-//
-//        switch (c){
-//            case 0:
-//                break;
-//            case 'd':
-//                debug_flag = TRUE;
-//                break;
-//            case 'l':
-//                rlensname  = optarg;
-//                break;
-//            case 'q':
-//                qualsname  = optarg;
-//                break;
-//            case 'n':
-//                nucsname   = optarg;
-//                break;
-//            case 'c':
-//                covname    = optarg;
-//                break;
-//            case 'i':
-//                insname    = optarg;
-//                break;
-//            case 'g':
-//                gccovname  = optarg;
-//                break;
-//            case 's':
-//                statsname  = optarg;
-//                break;
-//            case 'w':
-//                windowsize = atoi(optarg);
-//                break;
-//            case 'r':
-//                readstarts = optarg;
-//                break;
-//            case 'a':
-//                allinsertlengths = TRUE;
-//                break;
-//            case 'f':
-//                nowarnings = TRUE;
-//                break;
-//            case 'x':
-//                readgroups = optarg;
-//                break;
-//            case '?':
-//                break;
-//            default:
-//                abort();
-//        }
-//    }
-//
-//    /* start clock book-keeping */
-//    t0 = time(0);
-//
-//    if((argc - optind) != 2){
-//        fprintf(stderr, "Usage\n");
-//        fprintf(stderr, "\tbamreports [options] reference.fa alignments.bam\n");
-//        return EXIT_FAILURE;
-//    }
-//
-//    // user should have only specified one of readgroups or readstarts
-//    if((readgroups != NULL ) && (readstarts != NULL)){
-//        fprintf(stderr, "This will count reads which have the given startname AND the given readgroup\n");
-//    }
-//
-//    bamreports(argv[optind], 
-//               argv[optind+1], 
-//               rlensname,
-//               qualsname, 
-//               nucsname, 
-//               covname, 
-//               insname,
-//               gccovname,
-//               windowsize,
-//               statsname,
-//               readstarts,
-//               readgroups,
-//               allinsertlengths);
-//
-//    /* print the relevant stats used by the program */
-//    print_usage();
-//   
-//    return EXIT_SUCCESS;
-//}
+int main(int argc, char** argv)
+{
+    argv0 = "bamstats";
+    int c;
+
+    char* rlensname = NULL;
+    char* qualsname = NULL;
+    char* nucsname  = NULL;
+    char* covname   = NULL;
+    char* insname   = NULL;
+    char* gccovname = NULL;
+    char* statsname = NULL;
+    int windowsize  = 1000000;
+    char* readstarts= NULL;
+    char* readgroups = NULL;
+    nowarnings = FALSE;
+
+    // by default I only include the properly paired reads in the insert length
+    // distribution. But in some cases (like damaged ancient reads), very few
+    // reads get marked as "properly paired" since BWA does not find enough
+    // pairs to calculate the mean and sd values that should be called as
+    // properly paired. In those cases I would want to include all pairs in this
+    // calculation. Of course that means all pairs where both ends mapped.
+    bool allinsertlengths = FALSE;
+
+    while (1){
+        static struct option long_options[] = {
+            {"debug"   , no_argument , 0, 'd'},
+            {"rlens"   , required_argument, 0, 'l'},
+            {"rqual"   , required_argument, 0, 'q'},
+            {"rnucs"   , required_argument, 0, 'n'},
+            {"rcovs"   , required_argument, 0, 'c'},
+            {"rinst"   , required_argument, 0, 'i'},
+            {"gccov"   , required_argument, 0, 'g'},  
+            {"stats"   , required_argument, 0, 's'},
+            {"wsize"   , required_argument, 0, 'w'},
+            {"run"     , required_argument, 0, 'r'},
+            {"rallinst", no_argument,       0, 'a'},
+            {"nowarn"  , no_argument,       0, 'f'},
+            {"rg"      , required_argument, 0, 'x'},
+            {0, 0, 0, 0}
+        };
+    
+        int option_index = 0;
+        c = getopt_long(argc, argv, "dl:q:n:c:i:g:s:w:r:afx:",
+                        long_options, &option_index);
+
+        if (c == -1) break;
+
+        switch (c){
+            case 0:
+                break;
+            case 'd':
+                debug_flag = TRUE;
+                break;
+            case 'l':
+                rlensname  = optarg;
+                break;
+            case 'q':
+                qualsname  = optarg;
+                break;
+            case 'n':
+                nucsname   = optarg;
+                break;
+            case 'c':
+                covname    = optarg;
+                break;
+            case 'i':
+                insname    = optarg;
+                break;
+            case 'g':
+                gccovname  = optarg;
+                break;
+            case 's':
+                statsname  = optarg;
+                break;
+            case 'w':
+                windowsize = atoi(optarg);
+                break;
+            case 'r':
+                readstarts = optarg;
+                break;
+            case 'a':
+                allinsertlengths = TRUE;
+                break;
+            case 'f':
+                nowarnings = TRUE;
+                break;
+            case 'x':
+                readgroups = optarg;
+                break;
+            case '?':
+                break;
+            default:
+                abort();
+        }
+    }
+
+    /* start clock book-keeping */
+    t0 = time(0);
+
+    if((argc - optind) != 2){
+        fprintf(stderr, "Usage\n");
+        fprintf(stderr, "\tbamstats [options] reference.fa alignments.bam\n");
+        return EXIT_FAILURE;
+    }
+
+    // user should have only specified one of readgroups or readstarts
+    if((readgroups != NULL ) && (readstarts != NULL)){
+        fprintf(stderr, "This will count reads which have the given startname AND the given readgroup\n");
+    }
+
+    calcbamstats(argv[optind], 
+                 argv[optind+1], 
+                 rlensname,
+                 qualsname, 
+                 nucsname, 
+                 covname, 
+                 insname,
+                 gccovname,
+                 windowsize,
+                 statsname,
+                 readstarts,
+                 readgroups,
+                 allinsertlengths);
+
+    /* print the relevant stats used by the program */
+    print_usage();
+   
+    return EXIT_SUCCESS;
+}
