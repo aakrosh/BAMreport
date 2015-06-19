@@ -5,7 +5,8 @@ args = commandArgs(trailingOnly = TRUE)
 pdf(args[2], width = 11.69, height = 8.27)
 
 data = read.table(args[1])
-xlimit = quantile(rep(data$V1, data$V2), 0.98)
+datax = data[-1,]
+xlimit = quantile(rep(datax$V1, datax$V2), 0.98)
 bases = sum(as.numeric(data$V2))
 data$V2 = data$V2 / bases
 data = data[-1,]
