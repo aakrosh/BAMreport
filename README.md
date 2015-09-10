@@ -65,4 +65,7 @@ This file summarizes the alignment statistics. "Mapped" refers to the reads that
 * insertlengths.pdf : This file shows the distribution of insert length (outer distance) between the paired-end sequences.
 * coverage.pdf : This shows the depth-of-coverage distribution of the sequences.
 * gccoverage.pdf : This shows a scatterplot of average coverage vs. the average GC content in non-overlapping windows on the reference. 
-
+* fiveprimeclips.pdf : This shows a histogram of the clipping location on the 5'
+ end of the sequences. Clipping on the 5' end is frequently a signature of
+adapter sequences or some other contamination. Clipping on the 3' end on the
+other hand can happen due to trimming of low quality regions.
