@@ -348,6 +348,9 @@ static void add_nucleotidecounts(const bam1_t* const alignment,
 static void add_clippingcounts(const bam1_t* const alignment, 
                                uint64_t* const clipfrequency)
 {
+    if((alignment->core.flag & 0x4) == 0x4) return;
+    if((alignment->core.flag & 0x400) == 0x400) return;
+
     uint32_t* cigar = bam1_cigar(alignment);
     bool is_reverse = (alignment->core.flag & 0x10) == 0x10 ? TRUE : FALSE;
     uint rlen = alignment->core.l_qseq;

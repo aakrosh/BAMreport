@@ -50,6 +50,7 @@ def RemoveTempFile(name):
         exit(4)
 
 def RunCommand(command):
+    if debug_flag: print >> stderr, " ".join(command)
     try:
         call(command)
     except OSError as e:
