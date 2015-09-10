@@ -11,6 +11,7 @@ output files in it. The output files include the following:
 * gccoverage.png : Variation of GC and coverage 
 * insertlengths.pdf : Insert length distribution
 * readlengths.pdf : Variation of read lengths
+* fiveprimeclips.pdf : Frequency of clipping on the 5' end
 
 ## REQUIREMENTS
 These tools should work on any standard 64 bit Linux environment with
