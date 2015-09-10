@@ -19,6 +19,7 @@
     5) gccoverage.png : Variation of GC and coverage 
     6) insertlengths.pdf : Insert length distribution
     7) readlengths.pdf : Variation of read lengths
+    8) fiveprimeclips.pdf : Histogram of clipping on 5' end of the read
 """
 
 from sys import argv, stderr, stdin, exit, stdout
@@ -49,6 +50,7 @@ def RemoveTempFile(name):
         exit(4)
 
 def RunCommand(command):
+    if debug_flag: print >> stderr, " ".join(command)
     try:
         call(command)
     except OSError as e:
@@ -72,6 +74,7 @@ def main(refName, alnName, outdir, windowsize):
     gccovName = CreateTempFile()
     insName = CreateTempFile()
     rlName = CreateTempFile()
+    clipName = CreateTempFile()
 
     command = ["%s/bamstats" % DIR,
                "-s", statsName, 
@@ -81,6 +84,7 @@ def main(refName, alnName, outdir, windowsize):
                "-g", gccovName,
                "-i", insName,
                "-l", rlName,
+               "-y", clipName,
                "-w", str(windowsize),
                refName, alnName]
     RunCommand(command)
@@ -104,6 +108,9 @@ def main(refName, alnName, outdir, windowsize):
     command = ["Rscript", '--no-init-file', "%s/plotreadlengths.R" % DIR, rlName, "%s/readlengths.pdf" % outdir]
     RunCommand(command)
 
+    command = ["Rscript", '--no-init-file', "%s/plotclippos.R" % DIR, clipName, "%s/fiveprimeclips.pdf" % outdir]
+    RunCommand(command)
+
     # clean up
     RemoveTempFile(nucName)
     RemoveTempFile(qualName)
@@ -111,6 +118,7 @@ def main(refName, alnName, outdir, windowsize):
     RemoveTempFile(gccovName)
     RemoveTempFile(insName)
     RemoveTempFile(rlName)
+    RemoveTempFile(clipName)
 
 if __name__ == "__main__":
     try:

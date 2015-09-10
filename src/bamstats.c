@@ -345,6 +345,26 @@ static void add_nucleotidecounts(const bam1_t* const alignment,
     }
 }
 
+static void add_clippingcounts(const bam1_t* const alignment, 
+                               uint64_t* const clipfrequency)
+{
+    if((alignment->core.flag & 0x4) == 0x4) return;
+    if((alignment->core.flag & 0x400) == 0x400) return;
+
+    uint32_t* cigar = bam1_cigar(alignment);
+    bool is_reverse = (alignment->core.flag & 0x10) == 0x10 ? TRUE : FALSE;
+    uint rlen = alignment->core.l_qseq;
+
+    // only the 5' soft-clips matter for this.
+    uint indx = 0;
+    if (is_reverse) indx = alignment->core.n_cigar-1;
+        
+    if (((cigar[indx] & 0xf) == BAM_CSOFT_CLIP) || 
+        ((cigar[indx] & 0xf) == BAM_CHARD_CLIP)) {
+        clipfrequency[((cigar[indx] & 0xfffffff0) >> 4)] += 1;
+    }
+}
+
 // print the insert length distribution for the reads
 static void print_insertlendist(const char* const insname, 
                                 const uint64_t* const insertlenfrequency, 
@@ -356,6 +376,27 @@ static void print_insertlendist(const char* const insname,
         uint i;
         for(i = 0; i < maxinsertsize; i++){
             fprintf(fp, "%u %"PRIu64"\n", i + 1, insertlenfrequency[i]);    
+        }
+
+        fclose(fp);
+    }
+}
+
+// print the clipping frequency for the sequences
+static void print_clippingcounts(const char* const clipname,
+                                 const uint64_t* const clip1frequency, 
+                                 const uint64_t* const clip2frequency,
+                                 const uint64_t maxrlen)
+{
+    uint i;
+    if(clipname != NULL) {
+        FILE* fp = ckopen(clipname, "w");
+
+        for(i = 0; i < maxrlen; i++){
+            fprintf(fp, "1 %d %"PRIu64"\n", i + 1, clip1frequency[i]);
+        }
+        for(i = 0; i < maxrlen; i++){
+            fprintf(fp, "2 %d %"PRIu64"\n", i + 1, clip2frequency[i]);
         }
 
         fclose(fp);
@@ -495,6 +536,7 @@ void calcbamstats(const char* const refname,
                   const char* const covname,
                   const char* const insname,
                   const char* const gccovname,
+                  const char* const clipname,
                   const int windowsize,
                   const char* const statsname,
                   const char* const readstarts,
@@ -554,6 +596,10 @@ void calcbamstats(const char* const refname,
     int maxinsertsize = 1;
     uint64_t* insertlenfrequency = ckallocz(maxinsertsize * sizeof(uint64_t));
     //timestamp("Allocated the required memory\n");
+
+    // store the clipping frequency here
+    uint64_t* clip1frequency = ckallocz(maxreadlength * sizeof(uint64_t));
+    uint64_t* clip2frequency = ckallocz(maxreadlength * sizeof(uint64_t));
 
     int ret;
     uint64_t numread = 0;
@@ -636,6 +682,16 @@ void calcbamstats(const char* const refname,
                 nuc1counts[i] = ckallocz(5 * sizeof(uint64_t));
                 nuc2counts[i] = ckallocz(5 * sizeof(uint64_t));
             }
+            clip1frequency = ckrealloc(clip1frequency,
+                                   alignment->core.l_qseq * sizeof(uint64_t));
+            for(i = maxreadlength; i < alignment->core.l_qseq; i++){
+                clip1frequency[i] = 0;
+            }
+            clip2frequency = ckrealloc(clip2frequency,
+                                   alignment->core.l_qseq * sizeof(uint64_t));
+            for(i = maxreadlength; i < alignment->core.l_qseq; i++){
+                clip2frequency[i] = 0;
+            }
 
             maxreadlength = alignment->core.l_qseq;
         }
@@ -654,6 +710,9 @@ void calcbamstats(const char* const refname,
 
             // nucleotide counts
             add_nucleotidecounts(alignment, nuc1counts);
+
+            // clipping frequency
+            add_clippingcounts(alignment, clip1frequency);
         }else{
             stats->r_paired += 1;
             stats->b_paired += alignment->core.l_qseq;
@@ -671,6 +730,9 @@ void calcbamstats(const char* const refname,
 
                 // nucleotide counts
                 add_nucleotidecounts(alignment, nuc1counts);
+
+                // clipping frequency
+                add_clippingcounts(alignment, clip1frequency);
             }else if((alignment->core.flag & 0x80) == 0x80){
                 assert((alignment->core.flag & 0x40) != 0x40);
                 stats->read2s++;
@@ -683,6 +745,9 @@ void calcbamstats(const char* const refname,
 
                 // nucleotide counts
                 add_nucleotidecounts(alignment, nuc2counts);
+
+                // clipping frequency
+                add_clippingcounts(alignment, clip2frequency);
             }else{
                 fatalf("A paired read is expected to have just 2 fragments\n");
             }
@@ -794,6 +859,9 @@ void calcbamstats(const char* const refname,
     // print the insert length distribution
     print_insertlendist(insname, insertlenfrequency, maxinsertsize);
 
+    // print the clipping frequency
+    print_clippingcounts(clipname, clip1frequency, clip2frequency,maxreadlength);
+
     if(reference != NULL){
         // print the coverage distribution over the reference sequence
         print_coverage_distribution(covname, reference);
@@ -815,6 +883,7 @@ int main(int argc, char** argv)
     char* insname   = NULL;
     char* gccovname = NULL;
     char* statsname = NULL;
+    char* clipname  = NULL;
     int windowsize  = 1000000;
     char* readstarts= NULL;
     char* readgroups = NULL;
@@ -843,11 +912,12 @@ int main(int argc, char** argv)
             {"rallinst", no_argument,       0, 'a'},
             {"nowarn"  , no_argument,       0, 'f'},
             {"rg"      , required_argument, 0, 'x'},
+            {"clip"    , required_argument, 0, 'y'},
             {0, 0, 0, 0}
         };
     
         int option_index = 0;
-        c = getopt_long(argc, argv, "dl:q:n:c:i:g:s:w:r:afx:",
+        c = getopt_long(argc, argv, "dl:q:n:c:i:g:s:w:r:afx:y:",
                         long_options, &option_index);
 
         if (c == -1) break;
@@ -884,6 +954,9 @@ int main(int argc, char** argv)
                 break;
             case 'r':
                 readstarts = optarg;
+                break;
+            case 'y':
+                clipname = optarg;
                 break;
             case 'a':
                 allinsertlengths = TRUE;
@@ -923,6 +996,7 @@ int main(int argc, char** argv)
                  covname, 
                  insname,
                  gccovname,
+                 clipname,
                  windowsize,
                  statsname,
                  readstarts,
