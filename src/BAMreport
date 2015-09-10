@@ -9,6 +9,7 @@
         -d,--debug: print debug information
         -r,--reportdir: name of the directory where the output is put [report]
         -w,--windowsize: window size used in calculating GC-coverage [1000000]
+        -s,--single-end: the sequences are not paired-end or mate-pairs [PE]
 
     This creates a directory which is user specified and puts all the output 
     files in it. The output files include the following:
@@ -57,7 +58,7 @@ def RunCommand(command):
         print >> stderr, "Execution of %s failed: %s", (command,e)
         exit(5)
 
-def main(refName, alnName, outdir, windowsize):
+def main(refName, alnName, outdir, windowsize, is_singleend):
     # create the output directory
     try:
         os.mkdir(outdir)
@@ -90,26 +91,39 @@ def main(refName, alnName, outdir, windowsize):
     RunCommand(command)
 
     # run the plot scripts to generate the relevant plots
-    command = ["Rscript", '--no-init-file', "%s/plotnuccomp.R" % DIR, nucName, "%s/nucleotides.pdf" % outdir]
-    RunCommand(command)
-
-    command = ["Rscript", '--no-init-file', "%s/plotqualities.R" % DIR, qualName, "%s/quality.pdf" % outdir]
-    RunCommand(command)
-
     command = ["Rscript", '--no-init-file', "%s/plotcoverage.R" % DIR, covName, "%s/coverage.pdf" % outdir]
     RunCommand(command)
 
     command = ["Rscript", '--no-init-file', "%s/plotgccoverage.R" % DIR, gccovName, "%s/gccoverage.png" % outdir]
     RunCommand(command)
 
-    command = ["Rscript", '--no-init-file', "%s/plotinsertlengths.R" % DIR, insName, "%s/insertlengths.pdf" % outdir]
-    RunCommand(command)
+    if is_singleend:
+        command = ["Rscript", '--no-init-file', "%s/plotnuccomp_se.R" % DIR, nucName, "%s/nucleotides.pdf" % outdir]
+        RunCommand(command)
 
-    command = ["Rscript", '--no-init-file', "%s/plotreadlengths.R" % DIR, rlName, "%s/readlengths.pdf" % outdir]
-    RunCommand(command)
+        command = ["Rscript", '--no-init-file', "%s/plotqualities_se.R" % DIR, qualName, "%s/quality.pdf" % outdir]
+        RunCommand(command)
 
-    command = ["Rscript", '--no-init-file', "%s/plotclippos.R" % DIR, clipName, "%s/fiveprimeclips.pdf" % outdir]
-    RunCommand(command)
+        command = ["Rscript", '--no-init-file', "%s/plotreadlengths_se.R" % DIR, rlName, "%s/readlengths.pdf" % outdir]
+        RunCommand(command)
+
+        command = ["Rscript", '--no-init-file', "%s/plotclippos_se.R" % DIR, clipName, "%s/fiveprimeclips.pdf" % outdir]
+        RunCommand(command)
+    else:
+        command = ["Rscript", '--no-init-file', "%s/plotnuccomp.R" % DIR, nucName, "%s/nucleotides.pdf" % outdir]
+        RunCommand(command)
+
+        command = ["Rscript", '--no-init-file', "%s/plotqualities.R" % DIR, qualName, "%s/quality.pdf" % outdir]
+        RunCommand(command)
+
+        command = ["Rscript", '--no-init-file', "%s/plotinsertlengths.R" % DIR, insName, "%s/insertlengths.pdf" % outdir]
+        RunCommand(command)
+
+        command = ["Rscript", '--no-init-file', "%s/plotreadlengths.R" % DIR, rlName, "%s/readlengths.pdf" % outdir]
+        RunCommand(command)
+
+        command = ["Rscript", '--no-init-file', "%s/plotclippos.R" % DIR, clipName, "%s/fiveprimeclips.pdf" % outdir]
+        RunCommand(command)
 
     # clean up
     RemoveTempFile(nucName)
@@ -122,7 +136,7 @@ def main(refName, alnName, outdir, windowsize):
 
 if __name__ == "__main__":
     try:
-        opts, args = getopt(argv[1:], "hdr:w:",["help", "debug", "reportdir=", "windowsize="])
+        opts, args = getopt(argv[1:], "hdr:w:s",["help", "debug", "reportdir=", "windowsize=", "single-end"])
     except GetoptError, err:
         print str(err)
         print >> stderr, __doc__
@@ -130,6 +144,7 @@ if __name__ == "__main__":
 
     outdir = "report"
     windowsize = 1000000
+    is_singleend = False
 
     for o, a in opts:
         if o in ("-h", "--help"):
@@ -141,6 +156,8 @@ if __name__ == "__main__":
             outdir = a
         elif o in ("-w", "--windowsize"):
             windowsize = int(a)
+        elif o in ("-s", "--single-end"):
+            is_singleend = True
         else:
             assert False, "unhandled option"
 
@@ -148,4 +165,4 @@ if __name__ == "__main__":
         print >> stderr, __doc__
         exit(3)
 
-    main(args[0], args[1], outdir, windowsize)
+    main(args[0], args[1], outdir, windowsize, is_singleend)
