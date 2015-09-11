@@ -955,7 +955,9 @@ void calcbamstats(const char* const refname,
             }
 
             // add the error counts from this alignment.
-            if ((alignment->core.flag & 0x40) == 0x40) {
+            if ((((alignment->core.flag & 0x40) != 0x40)  && 
+                 ((alignment->core.flag & 0x80) != 0x80)) || 
+                ((alignment->core.flag & 0x40) == 0x40)) {
                 // this is read1
                 add_errors(alignment, reference, hin, err1frequency);
             } else if ((alignment->core.flag & 0x80) == 0x80) {
