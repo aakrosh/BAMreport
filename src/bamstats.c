@@ -182,8 +182,10 @@ static void print_rlength(const char* const rlensname,
             fprintf(fp, "1 %d %0.3f\n", i + 1, perc);
         }
         for(i = 0; i < maxrlen; i++){
-            perc = rlens2[i] / stats->read2s;
-            fprintf(fp, "2 %d %0.3f\n", i + 1, perc);
+            if (stats->read2s != 0) {
+                perc = rlens2[i] / stats->read2s;
+                fprintf(fp, "2 %d %0.3f\n", i + 1, perc);
+            }
         }
 
         fclose(fp);
@@ -478,8 +480,10 @@ static void print_errors(const char* const errname,
             fprintf(fp, "1 %d %0.3f\n", i + 1, perc);
         }
         for(i = 0; i < maxrlen; i++){
-            perc = err2frequency[i] * 1.0 / stats->read2s;
-            fprintf(fp, "2 %d %0.3f\n", i + 1, perc);
+            if (stats->read2s != 0) {
+                perc = err2frequency[i] * 1.0 / stats->read2s;
+                fprintf(fp, "2 %d %0.3f\n", i + 1, perc);
+            }
         }
 
         fclose(fp);
@@ -504,8 +508,10 @@ static void print_clippingcounts(const char* const clipname,
             fprintf(fp, "1 %d %0.3f\n", i + 1, perc);
         }
         for(i = 0; i < maxrlen; i++){
-            perc = clip2frequency[i] * 1.0 / stats->read2s;
-            fprintf(fp, "2 %d %0.3f\n", i + 1, perc);
+            if (stats->read2s != 0) {
+                perc = clip2frequency[i] * 1.0 / stats->read2s;
+                fprintf(fp, "2 %d %0.3f\n", i + 1, perc);
+            }
         }
 
         fclose(fp);
@@ -824,6 +830,7 @@ void calcbamstats(const char* const refname,
         if((alignment->core.flag & 0x1) == 0){
             stats->r_singletons += 1;
             stats->b_singletons += alignment->core.l_qseq;
+            stats->read1s++;
             
             // add the read length distribution
             forceassert(maxreadlength >= alignment->core.l_qseq);
