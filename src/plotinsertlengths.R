@@ -13,6 +13,6 @@ plot(data,
      main = "Insert size distribution",    
      xlab = "Insert size",
      ylab = "Frequency",
-     xlim = c(0, quantile(rep(data$V1,data$V2),.98)))
+     xlim = c(0, quantile(rep(data$V1,data$V2*1000),.98)))
 
 dev.off()

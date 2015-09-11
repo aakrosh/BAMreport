@@ -169,17 +169,21 @@ static void print_stats(const bamstats* stats, FILE* fp)
 static void print_rlength(const char* const rlensname,
               const uint64_t* const rlens1,
               const uint64_t* const rlens2,
-              const uint maxrlen)
+              const uint maxrlen,
+              const bamstats* const stats)
 {
     uint i;
+    float perc;
     if(rlensname != NULL){
         FILE* fp = ckopen(rlensname, "w");
 
         for(i = 0; i < maxrlen; i++){
-            fprintf(fp, "1 %d %"PRIu64"\n", i + 1, rlens1[i]);
+            perc = rlens1[i] / stats->read1s;
+            fprintf(fp, "1 %d %0.3f\n", i + 1, perc);
         }
         for(i = 0; i < maxrlen; i++){
-            fprintf(fp, "2 %d %"PRIu64"\n", i + 1, rlens2[i]);
+            perc = rlens2[i] / stats->read2s;
+            fprintf(fp, "2 %d %0.3f\n", i + 1, perc);
         }
 
         fclose(fp);
@@ -368,14 +372,17 @@ static void add_clippingcounts(const bam1_t* const alignment,
 // print the insert length distribution for the reads
 static void print_insertlendist(const char* const insname, 
                                 const uint64_t* const insertlenfrequency, 
-                                const uint maxinsertsize)
+                                const uint maxinsertsize,
+                                const bamstats* const stats)
 {
     if(insname != NULL){
         FILE* fp = ckopen(insname, "w");
 
         uint i;
+        float perc;
         for(i = 0; i < maxinsertsize; i++){
-            fprintf(fp, "%u %"PRIu64"\n", i + 1, insertlenfrequency[i]);    
+            perc = insertlenfrequency[i] * 1.0 / stats->properlypaired;
+            fprintf(fp, "%u %0.3f\n", i + 1, perc);    
         }
 
         fclose(fp);
@@ -386,17 +393,21 @@ static void print_insertlendist(const char* const insname,
 static void print_clippingcounts(const char* const clipname,
                                  const uint64_t* const clip1frequency, 
                                  const uint64_t* const clip2frequency,
-                                 const uint64_t maxrlen)
+                                 const uint64_t maxrlen,
+                                 const bamstats* const stats)
 {
     uint i;
+    float perc;
     if(clipname != NULL) {
         FILE* fp = ckopen(clipname, "w");
 
         for(i = 0; i < maxrlen; i++){
-            fprintf(fp, "1 %d %"PRIu64"\n", i + 1, clip1frequency[i]);
+            perc = clip1frequency[i] * 1.0 / stats->read1s;
+            fprintf(fp, "1 %d %0.3f\n", i + 1, perc);
         }
         for(i = 0; i < maxrlen; i++){
-            fprintf(fp, "2 %d %"PRIu64"\n", i + 1, clip2frequency[i]);
+            perc = clip2frequency[i] * 1.0 / stats->read2s;
+            fprintf(fp, "2 %d %0.3f\n", i + 1, perc);
         }
 
         fclose(fp);
@@ -848,7 +859,7 @@ void calcbamstats(const char* const refname,
     print_rlength(rlensname, 
                   readlen1frequency, 
                   readlen2frequency, 
-                  maxreadlength);
+                  maxreadlength, stats);
 
     // print the quality value distribution
     print_readqualdist(qualsname, qual1values, qual2values, maxreadlength);
@@ -857,10 +868,11 @@ void calcbamstats(const char* const refname,
     print_nuccomp(nucsname, nuc1counts, nuc2counts, maxreadlength);
 
     // print the insert length distribution
-    print_insertlendist(insname, insertlenfrequency, maxinsertsize);
+    print_insertlendist(insname, insertlenfrequency, maxinsertsize, stats);
 
     // print the clipping frequency
-    print_clippingcounts(clipname, clip1frequency, clip2frequency,maxreadlength);
+    print_clippingcounts(clipname, clip1frequency, clip2frequency, 
+                         maxreadlength, stats);
 
     if(reference != NULL){
         // print the coverage distribution over the reference sequence
