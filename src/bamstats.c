@@ -178,12 +178,12 @@ static void print_rlength(const char* const rlensname,
         FILE* fp = ckopen(rlensname, "w");
 
         for(i = 0; i < maxrlen; i++){
-            perc = rlens1[i] / stats->read1s;
+            perc = rlens1[i] * 1.0 / stats->read1s;
             fprintf(fp, "1 %d %0.3f\n", i + 1, perc);
         }
         for(i = 0; i < maxrlen; i++){
             if (stats->read2s != 0) {
-                perc = rlens2[i] / stats->read2s;
+                perc = rlens2[i] * 1.0 / stats->read2s;
                 fprintf(fp, "2 %d %0.3f\n", i + 1, perc);
             }
         }
