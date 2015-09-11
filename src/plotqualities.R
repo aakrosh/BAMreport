@@ -70,6 +70,6 @@ axis(2, at = seq(0, 60, 10), labels = seq(0, 60, 10))
 #axis(4, at = seq(0, 60, 10), labels = seq(0, 60, 10))
 
 
-mtext("Quality value variation", outer = TRUE, cex = 1.5)
+mtext("Quality value variation (Read1,Read2)", outer = TRUE, cex = 1.5)
 
 dev.off()

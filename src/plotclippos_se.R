@@ -12,7 +12,7 @@ data = read.table(args[1])
 plotdata = data[which(data$V1 == "1"),]
 mp = barplot(plotdata$V3,
         xlab = "5' Clip position",
-        ylab = "Frequency",
+        ylab = "Fraction of read1s",
         axes = F,
         main = "Read 1")
 

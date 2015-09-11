@@ -39,6 +39,6 @@ axis(1, at = seq(1, nrow(plotdata), 5), labels = seq(1, nrow(plotdata), 5))
 axis(2, at = seq(0, 60, 10), labels = seq(0, 60, 10))
 #axis(4, at = seq(0, 60, 10), labels = seq(0, 60, 10))
 
-mtext("Quality value variation", outer = TRUE, cex = 1.5)
+mtext("Quality value variation (Read1)", outer = TRUE, cex = 1.5)
 
 dev.off()
