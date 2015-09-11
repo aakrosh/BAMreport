@@ -12,6 +12,7 @@ output files in it. The output files include the following:
 * insertlengths.pdf : Insert length distribution
 * readlengths.pdf : Variation of read lengths
 * fiveprimeclips.pdf : Frequency of clipping on the 5' end
+* errors.pdf : Error rates vs the position on the read
 
 ## REQUIREMENTS
 These tools should work on any standard 64 bit Linux environment with
@@ -70,3 +71,5 @@ This file summarizes the alignment statistics. "Mapped" refers to the reads that
  end of the sequences. Clipping on the 5' end is frequently a signature of
 adapter sequences or some other contamination. Clipping on the 3' end on the
 other hand can happen due to trimming of low quality regions.
+* errors.pdf : This shows a histogram of the variation of error rate on the
+ different locations of the sequences.
