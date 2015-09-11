@@ -58,7 +58,7 @@ def RunCommand(command):
         print >> stderr, "Execution of %s failed: %s", (command,e)
         exit(5)
 
-def main(refName, alnName, outdir, windowsize, is_singleend):
+def main(refName, alnName, outdir, windowsize, is_singleend, delete_temp):
     # create the output directory
     try:
         os.mkdir(outdir)
@@ -126,17 +126,18 @@ def main(refName, alnName, outdir, windowsize, is_singleend):
         RunCommand(command)
 
     # clean up
-    RemoveTempFile(nucName)
-    RemoveTempFile(qualName)
-    RemoveTempFile(covName)
-    RemoveTempFile(gccovName)
-    RemoveTempFile(insName)
-    RemoveTempFile(rlName)
-    RemoveTempFile(clipName)
+    if delete_temp:
+        RemoveTempFile(nucName)
+        RemoveTempFile(qualName)
+        RemoveTempFile(covName)
+        RemoveTempFile(gccovName)
+        RemoveTempFile(insName)
+        RemoveTempFile(rlName)
+        RemoveTempFile(clipName)
 
 if __name__ == "__main__":
     try:
-        opts, args = getopt(argv[1:], "hdr:w:s",["help", "debug", "reportdir=", "windowsize=", "single-end"])
+        opts, args = getopt(argv[1:], "hdr:w:sp",["help", "debug", "reportdir=", "windowsize=", "single-end", "preserve"])
     except GetoptError, err:
         print str(err)
         print >> stderr, __doc__
@@ -145,6 +146,7 @@ if __name__ == "__main__":
     outdir = "report"
     windowsize = 1000000
     is_singleend = False
+    delete_temp = True
 
     for o, a in opts:
         if o in ("-h", "--help"):
@@ -158,6 +160,8 @@ if __name__ == "__main__":
             windowsize = int(a)
         elif o in ("-s", "--single-end"):
             is_singleend = True
+        elif o in ("-p", "--preserve"):
+            delete_temp = False
         else:
             assert False, "unhandled option"
 
@@ -165,4 +169,4 @@ if __name__ == "__main__":
         print >> stderr, __doc__
         exit(3)
 
-    main(args[0], args[1], outdir, windowsize, is_singleend)
+    main(args[0], args[1], outdir, windowsize, is_singleend, delete_temp)
