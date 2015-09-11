@@ -349,6 +349,77 @@ static void add_nucleotidecounts(const bam1_t* const alignment,
     }
 }
 
+static inline int encodedbase_to_ascii(const int base) 
+{
+    if (base == 1) {
+        return 'A';
+    } else if (base == 2) {
+        return 'C';
+    } else if (base == 4) {
+        return 'G';
+    } else if (base == 8) {
+        return 'T';
+    } else if (base == 15) {
+        return 'N';
+    } else {
+        fatalf("Unknown encoded base");
+    }
+}
+
+static void add_errors(const bam1_t* const alignment,
+                       const hashtable* const reference,
+                       const bam_header_t* const hin,
+                       uint64_t* const errfrequency)
+{
+    chrcoverage* cov = must_find_hashtable(reference,
+                               hin->target_name[alignment->core.tid],
+                               strlen(hin->target_name[alignment->core.tid]));
+    uchar* qseq = bam1_seq(alignment);
+    if (*qseq == '*'){
+        fatalf("The read sequences is not stored in this BAM for this read %s\n", bam1_qname(alignment));
+    }
+
+    uint32_t* cigar = bam1_cigar(alignment);
+
+    uint i, j, oplen;
+    uint qindx = 0;
+    uint rindx = alignment->core.pos;
+    for(i = 0; i < alignment->core.n_cigar; i++){
+        oplen = ((cigar[i] & 0xfffffff0) >> 4);
+        switch(cigar[i] & 0xf){
+            case BAM_CMATCH :
+                for (j = 0; j < oplen; j++) {
+                    int q = encodedbase_to_ascii(bam1_seqi(qseq,qindx));
+                    int r = toupper(cov->sequence[rindx]);
+                    if (q != r){
+                        errfrequency[qindx] += 1;
+                    }
+                    qindx += 1;
+                    rindx += 1;
+                }
+                break;
+            case BAM_CINS:
+                qindx += oplen; 
+                break;
+            case BAM_CDEL:
+                rindx += oplen; 
+                break;
+            case BAM_CREF_SKIP:
+                fatalf("Have not handled REF_SKIP in CIGAR");
+            case BAM_CSOFT_CLIP:
+                qindx += oplen;
+                break;
+            case BAM_CHARD_CLIP:
+                qindx += oplen;
+                break;
+            case BAM_CPAD:
+                break;
+            default :
+                fatalf("Unhandled CIGAR operation\n");
+        }
+    }
+}
+
 static void add_clippingcounts(const bam1_t* const alignment, 
                                uint64_t* const clipfrequency)
 {
@@ -387,6 +458,33 @@ static void print_insertlendist(const char* const insname,
 
         fclose(fp);
     }
+}
+
+// print the error rate table 
+static void print_errors(const char* const errname,
+                         const uint64_t* const err1frequency,
+                         const uint64_t* const err2frequency,
+                         const uint64_t maxrlen,
+                         const bamstats* const stats)
+{
+    uint i;
+    float perc;
+
+    if(errname != NULL) {
+        FILE* fp = ckopen(errname, "w");
+    
+        for(i = 0; i < maxrlen; i++){
+            perc = err1frequency[i] * 1.0 / stats->read1s;
+            fprintf(fp, "1 %d %0.3f\n", i + 1, perc);
+        }
+        for(i = 0; i < maxrlen; i++){
+            perc = err2frequency[i] * 1.0 / stats->read2s;
+            fprintf(fp, "2 %d %0.3f\n", i + 1, perc);
+        }
+
+        fclose(fp);
+       
+    } 
 }
 
 // print the clipping frequency for the sequences
@@ -548,6 +646,7 @@ void calcbamstats(const char* const refname,
                   const char* const insname,
                   const char* const gccovname,
                   const char* const clipname,
+                  const char* const errname,
                   const int windowsize,
                   const char* const statsname,
                   const char* const readstarts,
@@ -558,7 +657,7 @@ void calcbamstats(const char* const refname,
     // hashtable where the key is the name of the chromosome and the value will
     // be a char array of size equal to  the length of the chromosome sequence.
     hashtable* reference = NULL;
-    if((covname != NULL) || (gccovname != NULL)){
+    if((covname != NULL) || (gccovname != NULL) || (errname != NULL)){
         reference = read_reference(refname);
         if(nowarnings == FALSE){
             //fprintf(stderr, "Warning : reference sequence in memory (expensive)\n");    
@@ -611,6 +710,10 @@ void calcbamstats(const char* const refname,
     // store the clipping frequency here
     uint64_t* clip1frequency = ckallocz(maxreadlength * sizeof(uint64_t));
     uint64_t* clip2frequency = ckallocz(maxreadlength * sizeof(uint64_t));
+
+    // store the error counts here
+    uint64_t* err1frequency = ckallocz(maxreadlength * sizeof(uint64_t));
+    uint64_t* err2frequency = ckallocz(maxreadlength * sizeof(uint64_t));
 
     int ret;
     uint64_t numread = 0;
@@ -702,6 +805,16 @@ void calcbamstats(const char* const refname,
                                    alignment->core.l_qseq * sizeof(uint64_t));
             for(i = maxreadlength; i < alignment->core.l_qseq; i++){
                 clip2frequency[i] = 0;
+            }
+            err1frequency = ckrealloc(err1frequency,
+                                   alignment->core.l_qseq * sizeof(uint64_t));
+            for(i = maxreadlength; i < alignment->core.l_qseq; i++){
+                err1frequency[i] = 0;
+            }
+            err2frequency = ckrealloc(err2frequency,
+                                   alignment->core.l_qseq * sizeof(uint64_t));
+            for(i = maxreadlength; i < alignment->core.l_qseq; i++){
+                err2frequency[i] = 0;
             }
 
             maxreadlength = alignment->core.l_qseq;
@@ -840,6 +953,17 @@ void calcbamstats(const char* const refname,
                     if(cov->coverage[i] == 251) cov->coverage[i] = 250;
                 }
             }
+
+            // add the error counts from this alignment.
+            if ((alignment->core.flag & 0x40) == 0x40) {
+                // this is read1
+                add_errors(alignment, reference, hin, err1frequency);
+            } else if ((alignment->core.flag & 0x80) == 0x80) {
+                // this is read2
+                add_errors(alignment, reference, hin, err2frequency);
+            } else {
+                fatalf("Please check the segments in these templates");
+            }
         }
     }
 
@@ -880,6 +1004,9 @@ void calcbamstats(const char* const refname,
 
         // print the binned GC coverage in non-overlapping windows
         print_gccoverage(gccovname, reference, windowsize);
+
+        // print the error rate table
+        print_errors(errname, err1frequency, err2frequency, maxreadlength,stats);
     }
 }
 
@@ -896,6 +1023,7 @@ int main(int argc, char** argv)
     char* gccovname = NULL;
     char* statsname = NULL;
     char* clipname  = NULL;
+    char* errname   = NULL;
     int windowsize  = 1000000;
     char* readstarts= NULL;
     char* readgroups = NULL;
@@ -925,11 +1053,12 @@ int main(int argc, char** argv)
             {"nowarn"  , no_argument,       0, 'f'},
             {"rg"      , required_argument, 0, 'x'},
             {"clip"    , required_argument, 0, 'y'},
+            {"error"   , required_argument, 0, 'e'},
             {0, 0, 0, 0}
         };
     
         int option_index = 0;
-        c = getopt_long(argc, argv, "dl:q:n:c:i:g:s:w:r:afx:y:",
+        c = getopt_long(argc, argv, "dl:q:n:c:i:g:s:w:r:afx:y:e:",
                         long_options, &option_index);
 
         if (c == -1) break;
@@ -970,6 +1099,9 @@ int main(int argc, char** argv)
             case 'y':
                 clipname = optarg;
                 break;
+            case 'e':
+                errname = optarg;
+                break;
             case 'a':
                 allinsertlengths = TRUE;
                 break;
@@ -1009,6 +1141,7 @@ int main(int argc, char** argv)
                  insname,
                  gccovname,
                  clipname,
+                 errname,
                  windowsize,
                  statsname,
                  readstarts,

@@ -21,6 +21,7 @@
     6) insertlengths.pdf : Insert length distribution
     7) readlengths.pdf : Variation of read lengths
     8) fiveprimeclips.pdf : Histogram of clipping on 5' end of the read
+    9) errors.pdf : Histogram of errors (mismatches to the references) 
 """
 
 from sys import argv, stderr, stdin, exit, stdout
@@ -76,6 +77,7 @@ def main(refName, alnName, outdir, windowsize, is_singleend, delete_temp):
     insName = CreateTempFile()
     rlName = CreateTempFile()
     clipName = CreateTempFile()
+    errName = CreateTempFile()
 
     command = ["%s/bamstats" % DIR,
                "-s", statsName, 
@@ -86,6 +88,7 @@ def main(refName, alnName, outdir, windowsize, is_singleend, delete_temp):
                "-i", insName,
                "-l", rlName,
                "-y", clipName,
+               "-e", errName,
                "-w", str(windowsize),
                refName, alnName]
     RunCommand(command)
@@ -109,6 +112,9 @@ def main(refName, alnName, outdir, windowsize, is_singleend, delete_temp):
 
         command = ["Rscript", '--no-init-file', "%s/plotclippos_se.R" % DIR, clipName, "%s/fiveprimeclips.pdf" % outdir]
         RunCommand(command)
+
+        command = ["Rscript", '--no-init-file', "%s/ploterrfreq_se.R" % DIR, errName, "%s/errors.pdf" % outdir]
+        RunCommand(command)
     else:
         command = ["Rscript", '--no-init-file', "%s/plotnuccomp.R" % DIR, nucName, "%s/nucleotides.pdf" % outdir]
         RunCommand(command)
@@ -125,6 +131,9 @@ def main(refName, alnName, outdir, windowsize, is_singleend, delete_temp):
         command = ["Rscript", '--no-init-file', "%s/plotclippos.R" % DIR, clipName, "%s/fiveprimeclips.pdf" % outdir]
         RunCommand(command)
 
+        command = ["Rscript", '--no-init-file', "%s/ploterrfreq.R" % DIR, errName, "%s/errors.pdf" % outdir]
+        RunCommand(command)
+
     # clean up
     if delete_temp:
         RemoveTempFile(nucName)
@@ -134,6 +143,7 @@ def main(refName, alnName, outdir, windowsize, is_singleend, delete_temp):
         RemoveTempFile(insName)
         RemoveTempFile(rlName)
         RemoveTempFile(clipName)
+        RemoveTempFile(errName)
 
 if __name__ == "__main__":
     try:

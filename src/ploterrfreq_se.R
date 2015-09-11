@@ -11,8 +11,8 @@ data = read.table(args[1])
 # for the first read
 plotdata = data[which(data$V1 == "1"),]
 mp = barplot(plotdata$V3,
-        xlab = "5' Clip position",
-        ylab = "Fraction of read1s",
+        xlab = "Position on the read",
+        ylab = "Fraction of read1s with errors",
         axes = F,
         main = "Read 1")
 
@@ -22,6 +22,6 @@ index[1] = 1
 axis(1, at = mp[index], labels = index)
 axis(2)
 
-mtext("Clipping position distribution", outer = TRUE, cex = 1.5)
+mtext("Error rate with read position", outer = TRUE, cex = 1.5)
 
 dev.off()
