@@ -15,6 +15,10 @@ extern char* argv0;
 void fatal(const char* const msg);
 void fatalf(const char* const fmt, ...);
 
+/*warning routines*/
+void warn(const char* const msg);
+void warnf(const char* const fmt, ...);
+
 /*print the name of the program*/
 void print_argv0();
 

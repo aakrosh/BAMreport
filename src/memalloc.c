@@ -58,6 +58,17 @@ void *ckrealloc(void * p, const size_t size)
     return p;
 }
 
+/*reallocate the memory to the given size. memset 0 in the newly allocated*/
+void *ckreallocz(void * p, const size_t oldsize, const size_t newsize)
+{
+    p = p ? realloc(p, newsize) : malloc(newsize);
+    memset(p + oldsize, 0, newsize - oldsize);
+    if (!p){
+        fatal("ckrealloc failed");
+    }
+    return p;
+}
+
 // free the memory pointed to by this pointer. If MEM_DEBUG is set, then check
 // the guards.
 void ckfree(void* ptr)

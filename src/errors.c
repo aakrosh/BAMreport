@@ -34,4 +34,25 @@ void fatal(const char* const msg)
     fatalf("%s", msg);
 }
 
+void warnf(const char* const fmt, ...)
+{
+    pre(fmt != NULL);
+
+    va_list ap;
+    va_start(ap, fmt);
+    fflush(stdout);
+    print_argv0();
+    vfprintf(stderr, fmt, ap);
+    fputc('\n', stderr);
+    va_end(ap);
+}
+
+/*print the message on stderr and die*/
+void warn(const char* const msg)
+{
+    pre(msg != NULL);
+
+    warnf("%s", msg);
+}
+
 
