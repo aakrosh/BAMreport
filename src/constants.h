@@ -12,14 +12,6 @@ typedef unsigned char uchar;
 #undef MAX
 #define MAX(x,y) ((x) > (y) ? (x) : (y))
 
-//#ifndef TRUE
-//#define TRUE 1
-//#endif
-//
-//#ifndef FALSE
-//#define FALSE 0
-//#endif
-
 // exit codes
 #define ASSERT_FAILURE 2
 #define MEM_ALLOC_FAILURE 3

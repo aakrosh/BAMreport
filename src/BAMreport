@@ -2,26 +2,14 @@
 
 """
     usage:
-     BAMreport [options] reference.fa alignments.bam
+        BAMreport [options]  reference.fa sample.bam
 
     where the options are:
         -h,--help : print usage and quit
         -d,--debug: print debug information
-        -r,--reportdir: name of the directory where the output is put [report]
-        -w,--windowsize: window size used in calculating GC-coverage [1000000]
+        -r,--report: name of the output report [report.pdf]
+        -w,--windowsize: windowsize used in calculating GC and coverage [1000000]
         -s,--single-end: the sequences are not paired-end or mate-pairs [PE]
-
-    This creates a directory which is user specified and puts all the output 
-    files in it. The output files include the following:
-    1) stats.txt : Alignment statistics
-    2) nucleotides.pdf : Nucleotide composition vs. position on sequence
-    3) quality.pdf : Base quality vs position on sequence
-    4) coverage.pdf : Depth of coverage distribution
-    5) gccoverage.png : Variation of GC and coverage 
-    6) insertlengths.pdf : Insert length distribution
-    7) readlengths.pdf : Variation of read lengths
-    8) fiveprimeclips.pdf : Histogram of clipping on 5' end of the read
-    9) errors.pdf : Histogram of errors (mismatches to the references) 
 """
 
 from sys import argv, stderr, stdin, exit, stdout
@@ -59,104 +47,103 @@ def RunCommand(command):
         print >> stderr, "Execution of %s failed: %s", (command,e)
         exit(5)
 
-def main(refName, alnName, outdir, windowsize, is_singleend, delete_temp):
-    # create the output directory
-    try:
-        os.mkdir(outdir)
-    except OSError as e:
-        print >> stderr, "Creation of outdir \"%s\" failed: %s" % (outdir, e)
-        exit(6)    
-
+def main(refname, bamname, output, windowsize, is_se, save_tmp):
     # run bamstats to get the relevant information
     DIR = os.path.dirname(os.path.realpath(__file__))
-    statsName = "%s/stats.txt" % outdir
-    nucName = CreateTempFile()
-    qualName = CreateTempFile()
-    covName = CreateTempFile()
+    statsName = CreateTempFile()
+    nucName   = CreateTempFile()
+    qualName  = CreateTempFile()
+    covName   = CreateTempFile()
     gccovName = CreateTempFile()
-    insName = CreateTempFile()
-    rlName = CreateTempFile()
-    clipName = CreateTempFile()
-    errName = CreateTempFile()
+    insName   = CreateTempFile()
+    rlName    = CreateTempFile()
+    fclipName = CreateTempFile()
+    mmName    = CreateTempFile()
+    indelName = CreateTempFile()
 
-    command = ["%s/bamstats" % DIR,
-               "-s", statsName, 
-               "-n", nucName, 
-               "-q", qualName,
-               "-c", covName,
-               "-g", gccovName,
-               "-i", insName,
-               "-l", rlName,
-               "-y", clipName,
-               "-e", errName,
-               "-w", str(windowsize),
-               refName, alnName]
-    RunCommand(command)
-
-    # run the plot scripts to generate the relevant plots
-    command = ["Rscript", '--no-init-file', "%s/plotcoverage.R" % DIR, covName, "%s/coverage.pdf" % outdir]
-    RunCommand(command)
-
-    command = ["Rscript", '--no-init-file', "%s/plotgccoverage.R" % DIR, gccovName, "%s/gccoverage.png" % outdir]
-    RunCommand(command)
-
-    if is_singleend:
-        command = ["Rscript", '--no-init-file', "%s/plotnuccomp_se.R" % DIR, nucName, "%s/nucleotides.pdf" % outdir]
-        RunCommand(command)
-
-        command = ["Rscript", '--no-init-file', "%s/plotqualities_se.R" % DIR, qualName, "%s/quality.pdf" % outdir]
-        RunCommand(command)
-
-        command = ["Rscript", '--no-init-file', "%s/plotreadlengths_se.R" % DIR, rlName, "%s/readlengths.pdf" % outdir]
-        RunCommand(command)
-
-        command = ["Rscript", '--no-init-file', "%s/plotclippos_se.R" % DIR, clipName, "%s/fiveprimeclips.pdf" % outdir]
-        RunCommand(command)
-
-        command = ["Rscript", '--no-init-file', "%s/ploterrfreq_se.R" % DIR, errName, "%s/errors.pdf" % outdir]
-        RunCommand(command)
+    if (is_se): 
+        command = ["%s/bamstats" % DIR,
+                   "-s", statsName, 
+                   "-n", nucName, 
+                   "-q", qualName,
+                   "-c", covName,
+                   "-g", gccovName,
+                   "-r", rlName,
+                   "-f", fclipName,
+                   "-m", mmName,
+                   "-x", indelName,
+                   "-w", str(windowsize),
+                   refname, bamname]
     else:
-        command = ["Rscript", '--no-init-file', "%s/plotnuccomp.R" % DIR, nucName, "%s/nucleotides.pdf" % outdir]
-        RunCommand(command)
+        command = ["%s/bamstats" % DIR,
+                   "-s", statsName, 
+                   "-n", nucName, 
+                   "-q", qualName,
+                   "-c", covName,
+                   "-g", gccovName,
+                   "-i", insName,
+                   "-r", rlName,
+                   "-f", fclipName,
+                   "-m", mmName,
+                   "-x", indelName,
+                   "-w", str(windowsize),
+                   refname, bamname]
+    RunCommand(command)
 
-        command = ["Rscript", '--no-init-file', "%s/plotqualities.R" % DIR, qualName, "%s/quality.pdf" % outdir]
-        RunCommand(command)
+    # make the plots
+    if (is_se):
+         command = ["%s/BAMreport.R" % DIR,
+                   "--stats=%s" % statsName,
+                   "--rlens=%s" % rlName,
+                   "--rnucs=%s" % nucName,
+                   "--rqual=%s" % qualName,
+                   "--gccov=%s" % gccovName,
+                   "--fclip=%s" % fclipName,
+                   "--mm=%s" % mmName,
+                   "--indel=%s" % indelName,
+                   "--rcovs=%s" % covName,
+                   "--output=%s" % output]
+    else:
+        command = ["%s/BAMreport.R" % DIR,
+                   "--stats=%s" % statsName,
+                   "--rlens=%s" % rlName,
+                   "--rnucs=%s" % nucName,
+                   "--rqual=%s" % qualName,
+                   "--insrt=%s" % insName, 
+                   "--gccov=%s" % gccovName,
+                   "--fclip=%s" % fclipName,
+                   "--mm=%s" % mmName,
+                   "--indel=%s" % indelName,
+                   "--rcovs=%s" % covName,
+                   "--output=%s" % output]
+    RunCommand(command)
 
-        command = ["Rscript", '--no-init-file', "%s/plotinsertlengths.R" % DIR, insName, "%s/insertlengths.pdf" % outdir]
-        RunCommand(command)
-
-        command = ["Rscript", '--no-init-file', "%s/plotreadlengths.R" % DIR, rlName, "%s/readlengths.pdf" % outdir]
-        RunCommand(command)
-
-        command = ["Rscript", '--no-init-file', "%s/plotclippos.R" % DIR, clipName, "%s/fiveprimeclips.pdf" % outdir]
-        RunCommand(command)
-
-        command = ["Rscript", '--no-init-file', "%s/ploterrfreq.R" % DIR, errName, "%s/errors.pdf" % outdir]
-        RunCommand(command)
-
-    # clean up
-    if delete_temp:
+    if save_tmp:
+        print >> stderr, command
+    else:
+        RemoveTempFile(statsName)
+        RemoveTempFile(rlName)
         RemoveTempFile(nucName)
         RemoveTempFile(qualName)
-        RemoveTempFile(covName)
-        RemoveTempFile(gccovName)
         RemoveTempFile(insName)
-        RemoveTempFile(rlName)
-        RemoveTempFile(clipName)
-        RemoveTempFile(errName)
+        RemoveTempFile(gccovName)
+        RemoveTempFile(fclipName)
+        RemoveTempFile(mmName)
+        RemoveTempFile(indelName)
+        RemoveTempFile(covName)
 
 if __name__ == "__main__":
     try:
-        opts, args = getopt(argv[1:], "hdr:w:sp",["help", "debug", "reportdir=", "windowsize=", "single-end", "preserve"])
+        opts, args = getopt(argv[1:], "hdr:w:sp",["help", "debug", "report=", "windowsize=", "single-end", "preserve"])
     except GetoptError, err:
         print str(err)
         print >> stderr, __doc__
         exit(2) 
 
-    outdir = "report"
+    output = "report.pdf"
     windowsize = 1000000
-    is_singleend = False
-    delete_temp = True
+    is_se = False
+    save_tmp = False
 
     for o, a in opts:
         if o in ("-h", "--help"):
@@ -164,14 +151,14 @@ if __name__ == "__main__":
             exit()
         elif o in ("-d", "--debug"):
             debug_flag = True
-        elif o in ("-r", "--reportdir"):
-            outdir = a
+        elif o in ("-r", "--report"):
+            output = a
         elif o in ("-w", "--windowsize"):
             windowsize = int(a)
         elif o in ("-s", "--single-end"):
-            is_singleend = True
+            is_se = True
         elif o in ("-p", "--preserve"):
-            delete_temp = False
+            save_tmp = True
         else:
             assert False, "unhandled option"
 
@@ -179,4 +166,4 @@ if __name__ == "__main__":
         print >> stderr, __doc__
         exit(3)
 
-    main(args[0], args[1], outdir, windowsize, is_singleend, delete_temp)
+    main(args[0], args[1], output, windowsize, is_se, save_tmp)
