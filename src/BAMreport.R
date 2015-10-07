@@ -297,7 +297,8 @@ if (!is.null(argsL$insrt)) {
     
     legend("topright",
            legend = c("observed",paste("best normal fit (",round(fit$estimate[1],2),",",round(fit$estimate[2],2), ")")),
-           fill = colors)
+           fill = colors,
+           cex = 1.5)
 }
 
 # plot the coverage distribution
@@ -337,7 +338,8 @@ if (!is.null(argsL$rcovs)) {
     lines(x, hx, col = colors[2], lwd = 3)
     legend("topright",
        legend = c("observed",paste("best normal fit (",round(fit$estimate[1],2),",",round(fit$estimate[2],2), ")")),
-       fill = colors)
+       fill = colors, 
+       cex = 1.5)
 }
 
 # plot the normalized coverage distribution (more informative with low cov)
