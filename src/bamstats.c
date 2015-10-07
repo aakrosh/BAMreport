@@ -82,6 +82,7 @@ typedef struct chrcoverage_t
 {
     uint64_t length;
     uchar* coverage;
+    uchar* fragcount;
     uchar* sequence;
 } chrcoverage;
 
@@ -705,7 +706,7 @@ static void print_gc_coverage(const hashtable* const reference,
 
     int i;
     uint j, k;
-    int a,c,g,t,n,count;
+    int a,c,g,t,n,count,frags,startlocs;
     bin* iter;
     bin* next;
     for(i = 0; i < reference->size; i++){
@@ -716,8 +717,10 @@ static void print_gc_coverage(const hashtable* const reference,
             chrcoverage* tmp = iter->val;
             
             for(j = 0; j < tmp->length; j += windowsize){
-                a = c = g = t = n = count = 0;
+                a = c = g = t = n = count = frags = startlocs = 0;
                 for(k = j; k < (j + windowsize) && k < tmp->length; k++){
+                    frags += tmp->fragcount[k];
+                    if (tmp->fragcount[k] != 0) startlocs += 1;
                     switch(tmp->sequence[k]){
                         case 'A': a += 1; count += tmp->coverage[k]; break;
                         case 'a': a += 1; count += tmp->coverage[k]; break;
@@ -734,10 +737,11 @@ static void print_gc_coverage(const hashtable* const reference,
                 }
 
                 if((a+c+g+t) != 0){
-                    fprintf(fp, "%s %d %"PRIu64" %0.3f %2.2f %d\n", 
+                    fprintf(fp, "%s %d %"PRIu64" %0.3f %2.2f %d %d %d\n", 
                     iter->name, j, 
                     (j+windowsize) < tmp->length ? j+windowsize : tmp->length,
-                    (g+c)*1.0/(a+c+g+t), count*1.0/(a+c+g+t), a+c+g+t);
+                    (g+c)*1.0/(a+c+g+t), count*1.0/(a+c+g+t), a+c+g+t, frags,
+                    startlocs);
                 }
             }
             
@@ -758,6 +762,7 @@ static hashtable* read_reference(const char* const refname)
         chrcoverage* cov = ckallocz(sizeof(chrcoverage));
         cov->length   = strlen((char*)sp->sequence);
         cov->coverage = ckallocz(strlen((char*)sp->sequence));
+        cov->fragcount = ckallocz(strlen((char*)sp->sequence));
         cov->sequence = ckallocz(strlen((char*)sp->sequence)+1);
         cov->sequence = (uchar*)strcpy((char*)cov->sequence,(char*)sp->sequence);
 
@@ -982,6 +987,13 @@ static int calcbamstats(const char* const refname,
                 if(i < (int)cov->length){
                     cov->coverage[i] += 1;            
                     if(cov->coverage[i] == 251) cov->coverage[i] = 250;
+                }
+            }
+
+            // register this reads contribution toward fragment count 
+            if (((b->core.flag & 0x1) == 0) || ((b->core.flag & 0x40) == 0x40)){
+                if (cov->fragcount[pos1] < 250) {
+                    cov->fragcount[pos1] += 1;
                 }
             }
             

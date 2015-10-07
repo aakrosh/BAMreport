@@ -11,7 +11,7 @@ if(length(args) == 0){
 ## Help section
 if("--help" %in% args) {
   cat("
-      Run a simulation with random breakpoints
+      Prepare a report for the input BAM file.
  
       Arguments:
       --stats=someValue   - char, name of file with the stats
@@ -99,6 +99,7 @@ if (!is.null(argsL$rlens)) {
     data = read.table(argsL$rlens)
     tmp  = data[which(data$V1 == "2"),]
 
+    par(cex.axis = 1.5, cex.lab = 1.5, cex.main = 1.5)
     if (max(tmp$V3) == 0) {
         par(mfrow = c(1,1), oma = c(0, 0, 3, 0))
     } else {         
@@ -146,6 +147,7 @@ if (!is.null(argsL$rnucs)) {
     data = read.table(argsL$rnucs)
     tmp  = data[which(data$V1 == "2"),]
     
+    par(cex.axis = 1.5, cex.lab = 1.5, cex.main = 1.5)
     if (max(tmp$V8) == 0) {
         par(mfcol = c(5,1), oma = c(0, 0, 3, 0))
     } else {
@@ -192,6 +194,7 @@ if (!is.null(argsL$rnucs)) {
 if (!is.null(argsL$rqual)) {
     data = read.table(argsL$rqual)
     tmp  = data[which(data$V1 == "2"),]
+    par(cex.axis = 1.5, cex.lab = 1.5, cex.main = 1.5)
     if (max(tmp$V7) == 0) {
         par(mfrow = c(1,1), oma = c(0, 0, 3, 0))
     } else {
@@ -264,6 +267,7 @@ if (!is.null(argsL$rqual)) {
 # plot the insert length distribution
 # -----------------------------------
 if (!is.null(argsL$insrt)) {
+    par(cex.axis = 1.5, cex.lab = 1.5, cex.main = 1.5)
     par(mfrow = c(1,1), oma = c(0, 0, 3, 0))
     colors = c(rgb(255,0,0,150,maxColorValue=255),
                rgb(0,0,255,100,maxColorValue=255))
@@ -299,6 +303,7 @@ if (!is.null(argsL$insrt)) {
 # plot the coverage distribution
 # ------------------------------
 if (!is.null(argsL$rcovs)) {
+    par(cex.axis = 1.5, cex.lab = 1.5, cex.main = 1.5)
     par(mfrow = c(1,1), oma = c(0, 0, 3, 0))
     colors = c(rgb(255,0,0,150,maxColorValue=255),
                rgb(0,0,255,100,maxColorValue=255))
@@ -357,6 +362,7 @@ if (!is.null(argsL$gccov)) {
 if (!is.null(argsL$gccov)) {
     data = read.table(argsL$gccov)
     ylimit = quantile(subset(data$V5, data$V5 != 0.00), 0.98)
+    par(cex.axis = 1.5, cex.lab = 1.5, cex.main = 1.5)
     
     x = data$V4
     y = data$V5
@@ -374,6 +380,7 @@ if (!is.null(argsL$gccov)) {
 if (!is.null(argsL$fclip)) {
     data = read.table(argsL$fclip)
     tmp  = data[which(data$V1 == "2"),]
+    par(cex.axis = 1.5, cex.lab = 1.5, cex.main = 1.5)
     if (max(tmp$V4) == 0) {
         par(mfrow = c(1,1), oma = c(0, 0, 3, 0))
     } else {
@@ -418,6 +425,7 @@ if (!is.null(argsL$fclip)) {
 if (!is.null(argsL$mm)) {
     data = read.table(argsL$mm)
     tmp  = data[which(data$V1 == "2"),]
+    par(cex.axis = 1.5, cex.lab = 1.5, cex.main = 1.5)
     if (max(tmp$V4) == 0) {
         par(mfrow = c(1,1), oma = c(0, 0, 3, 0))
     } else {
@@ -463,6 +471,7 @@ if (!is.null(argsL$mm)) {
 if (!is.null(argsL$indel)) {
     data = read.table(argsL$indel)
     tmp  = data[which(data$V1 == "2"),]
+    par(cex.axis = 1.5, cex.lab = 1.5, cex.main = 1.5)
     if (max(tmp$V4) == 0) {
         par(mfrow = c(1,1), oma = c(0, 0, 3, 0))
     } else {
