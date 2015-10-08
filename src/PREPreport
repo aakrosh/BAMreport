@@ -1,0 +1,178 @@
+#!/usr/bin/env python
+
+"""
+    usage:
+        PREPreport [options]  reference.fa LAMP:aln1.bam,aln2.bam THERMO:aln3.bam,aln4.bam
+
+    where the options are:
+        -h,--help : print usage and quit
+        -d,--debug: print debug information
+        -r,--report: name of the output report [report.pdf]
+        -w,--windowsize: windowsize used in calculating GC and coverage [1000000]
+        -s,--single-end: the sequences are not paired-end or mate-pairs [PE]
+"""
+
+from sys import argv, stderr, stdin, exit, stdout
+from getopt import getopt, GetoptError
+from tempfile import mkstemp
+from subprocess import call
+
+import os
+
+import pysam
+
+__author__ = "Aakrosh Ratan"
+__email__  = "ratan@bx.psu.edu"
+
+# do we want the debug information to be printed?
+debug_flag = False
+
+def CreateTempFile():
+    """ Use mkstemp to create a temporary file
+    """
+    fd,name = mkstemp(dir = ".")
+    os.close(fd)
+    return name
+
+def RemoveTempFile(name):
+    try:
+        os.remove(name)
+    except OSError as e:
+        print >> stderr, "Removal of %s failed: %s" % (name, e)
+        exit(4)
+
+def RunCommand(command):
+    if debug_flag: print >> stderr, " ".join(command)
+    try:
+        call(command)
+    except OSError as e:
+        print >> stderr, "Execution of %s failed: %s", (command,e)
+        exit(5)
+
+def line_prepender(filename, line):
+    with open(filename, 'r+') as f:
+        content = f.read()
+        f.seek(0, 0)
+        f.write(line.rstrip('\r\n') + '\n' + content)
+
+def main(refName, prepStrings, output, windowsize, is_se, save_tmp):
+    DIR = os.path.dirname(os.path.realpath(__file__))
+    
+    # run bamstat on all the BAMs to get the relevant information
+    files = {}
+    for prepString in prepStrings:
+        prep,bams = prepString.split(":")
+        files[prep] = []
+        for bamName in bams.split(","):
+            statsName = CreateTempFile()
+            gcName    = CreateTempFile()
+            insName   = CreateTempFile()
+            files[prep].append((statsName,gcName,insName,bamName))  
+
+            command = ["%s/bamstats" % DIR,
+                       "-s", statsName,
+                       "-g", gcName,
+                       "-i", insName,
+                       "-w", str(windowsize),
+                       refName, bamName]
+            RunCommand(command)
+
+    # go through the stats file and print out relevant information to plot the
+    # mapping, alignment and PCR dup stats
+    insNames = []
+    gcNames  = []
+    combinedStatsName = CreateTempFile()
+    combinedStatsFile = open(combinedStatsName, "w")
+
+    print >> combinedStatsFile, "prep\tgenerated\taligned\tmapped\tdups"
+    for prep,fileNames in files.items():
+        for statsName,gcName,insName,bamName in fileNames:
+            insNames.append(insName)
+            gcNames.append(gcName)
+            with open(statsName, "r") as f:
+                for line in f:
+                    if line.startswith("QC-passed reads"):
+                        generated = int((line.strip().split()[3]).replace(',', ''))
+                    elif line.startswith("Duplicate reads"):
+                        duplicates = int((line.strip().split()[3]).replace(',',''))
+                    elif line.startswith("Number of reads aligned"):
+                        aligned = int((line.strip().split()[5]).replace(',', ''))
+                    elif line.startswith("Number of reads mapped"):
+                        mapped = int((line.strip().split()[5]).replace(',', ''))
+            print >> combinedStatsFile, prep,generated,aligned,mapped,duplicates
+
+    combinedStatsFile.close()
+
+    # add information of sample names into the insert length plots and window
+    # plots
+    for prep,fileNames in files.items():
+        indx = 1
+        for statsName,gcName,insName,bamName in fileNames:
+            samfile = pysam.AlignmentFile(bamName, 'rb')
+            if 'SM' in samfile.header:
+                ins_string = "insertsize    %s" % samfile.header['SM']
+                win_string = "%s_contig start end gc cov non_ns numfrags numstarts" % samfile.header['SM']
+            else:
+                ins_string = "insertsize    %s%d" % (prep,indx)
+                win_string = "%s%d_contig start end gc cov non_ns numfrags numstarts" % (prep,indx)
+                indx += 1
+            samfile.close()
+            line_prepender(insName, ins_string)
+            line_prepender(gcName, win_string)
+
+            
+
+    # make the plots
+    command = ["%s/PREPreport.R" % DIR,
+               "--stats=%s" % combinedStatsName,
+               "--insrt=%s" % ",".join([x for x in insNames]),
+               "--windw=%s" % ",".join([x for x in gcNames])
+              ]
+    print >> stderr, " ".join(command)
+    RunCommand(command)
+
+    if save_tmp:
+        pass
+    else:
+        for prep,fileNames in files.items():
+            for statsName,gcName,insName,bamName in fileNames:
+                RemoveTempFile(statsName)
+                RemoveTempFile(gcName)
+                RemoveTempFile(insName)
+        RemoveTempFile(combinedStatsName)
+
+if __name__ == "__main__":
+    try:
+        opts, args = getopt(argv[1:], "hdr:w:sp",["help", "debug", "report=", "windowsize=", "single-end", "preserve"])
+    except GetoptError, err:
+        print str(err)
+        print >> stderr, __doc__
+        exit(2) 
+
+    output = "report.pdf"
+    windowsize = 1000000
+    is_se = False
+    save_tmp = False
+
+    for o, a in opts:
+        if o in ("-h", "--help"):
+            print >> stderr, __doc__
+            exit()
+        elif o in ("-d", "--debug"):
+            debug_flag = True
+        elif o in ("-r", "--report"):
+            output = a
+        elif o in ("-w", "--windowsize"):
+            windowsize = int(a)
+        elif o in ("-s", "--single-end"):
+            is_se = True
+        elif o in ("-p", "--preserve"):
+            save_tmp = True
+        else:
+            assert False, "unhandled option"
+
+    if len(args) < 2:
+        print >> stderr, __doc__
+        exit(3)
+
+    main(args[0], args[1:], output, windowsize, is_se, save_tmp)
