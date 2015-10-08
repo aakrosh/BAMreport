@@ -317,12 +317,13 @@ if (!is.null(argsL$rcovs)) {
     bases = sum(as.numeric(data$V2))
     data$V2 = data$V2 / bases
     data = data[-1,]
+    repfrac = sum(as.numeric(data$V2))
  
     mfac = 100 / data$V2[1]
     smpl = rep(data$V1,data$V2 * mfac)
     fit = fitdistr(smpl, "normal")
     x = seq(0,xlimit,length=100*xlimit)*fit$estimate[2]
-    hx = dnorm(x, fit$estimate[1], fit$estimate[2]) * bases
+    hx = dnorm(x, fit$estimate[1], fit$estimate[2]) * repfrac
     ymax = max(max(hx),max(data$V2))    
 
     plot(data,
@@ -350,7 +351,7 @@ if (!is.null(argsL$gccov)) {
     avgcoverage = mean(coverage)
     relativecov = round(coverage / avgcoverage, 3)
     
-    h = hist(relativecov, xlim = c(0,2), breaks = 100)
+    h = hist(relativecov, xlim = c(0,2), breaks = 1000)
     
     rel  = subset(relativecov,relativecov <= 2)
     xfit = seq(0,2,length=1000)
