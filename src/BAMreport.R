@@ -317,12 +317,12 @@ if (!is.null(argsL$rcovs)) {
     bases = sum(as.numeric(data$V2))
     data$V2 = data$V2 / bases
     data = data[-1,]
-    reprfac = sum(as.numeric(data$V2))
  
-    smpl = rep(data$V1,data$V2/data$V2[1])
+    mfac = 100 / data$V2[1]
+    smpl = rep(data$V1,data$V2 * mfac)
     fit = fitdistr(smpl, "normal")
     x = seq(0,xlimit,length=100*xlimit)*fit$estimate[2]
-    hx = dnorm(x, fit$estimate[1], fit$estimate[2]) * reprfac
+    hx = dnorm(x, fit$estimate[1], fit$estimate[2]) * bases
     ymax = max(max(hx),max(data$V2))    
 
     plot(data,
