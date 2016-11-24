@@ -1,6 +1,9 @@
 #!/usr/bin/env python
 
 """
+Prepare a report for an alignment file in BAM format.
+Version: %(scriptVersion)s
+
     usage:
         BAMreport [options]  reference.fa sample.bam
 
@@ -11,9 +14,10 @@
         -w,--windowsize: windowsize used in calculating GC and coverage [1000000]
         -s,--single-end: the sequences are not paired-end or mate-pairs [PE]
         -t,--stats: add the stat info to this file [None]
+        -v,--version: print version and quit
 """
 
-from sys import argv, stderr, stdin, exit, stdout
+from sys import argv, stderr, stdin, exit, stdout, path
 from getopt import getopt, GetoptError
 from tempfile import mkstemp
 from subprocess import call
@@ -49,6 +53,9 @@ def RunCommand(command):
         exit(5)
 
 def main(refname, bamname, output, windowsize, is_se, save_tmp, statfile):
+    with open(path[0]+'/VERSION',"r") as version_file:
+        version = version_file.read().strip()
+
     # run bamstats to get the relevant information
     DIR = os.path.dirname(os.path.realpath(__file__))
     if statfile == None:
@@ -137,12 +144,16 @@ def main(refname, bamname, output, windowsize, is_se, save_tmp, statfile):
         RemoveTempFile(covName)
 
 if __name__ == "__main__":
+    with open(path[0]+'/VERSION',"r") as version_file:
+        version = version_file.read().strip()
+
     try:
-        opts, args = getopt(argv[1:], "hdr:w:spt:",
-        ["help","debug","report=","windowsize=","single-end","preserve","stats="])
+        opts, args = getopt(argv[1:], "hdr:w:spt:v",
+        ["help","debug","report=","windowsize=","single-end","preserve",
+         "stats=","version"])
     except GetoptError, err:
         print str(err)
-        print >> stderr, __doc__
+        print >> stderr, __doc__ % {'scriptVersion' : version}
         exit(2) 
 
     output = "report.pdf"
@@ -150,10 +161,11 @@ if __name__ == "__main__":
     is_se = False
     save_tmp = False
     statfile = None
+    print_version = False
 
     for o, a in opts:
         if o in ("-h", "--help"):
-            print >> stderr, __doc__
+            print >> stderr, __doc__ % {'scriptVersion' : version}
             exit()
         elif o in ("-d", "--debug"):
             debug_flag = True
@@ -167,11 +179,20 @@ if __name__ == "__main__":
             save_tmp = True
         elif o in ("-t", "--stats"):
             statfile = a
+        elif o in ("-v", "--version"):
+            print_version = True
         else:
             assert False, "unhandled option"
 
+    # Do we want to print the version and quit?
+    if print_version == True:
+        print >> stderr, "Program: BAMreport"
+        print >> stderr, "Version: %s" % version
+        print >> stderr, "Contact: Aakrosh Ratan (ratan@bx.psu.edu)"
+        exit(0)
+
     if len(args) != 2:
-        print >> stderr, __doc__
+        print >> stderr, __doc__ % {'scriptVersion' : version}
         exit(3)
 
     main(args[0], args[1], output, windowsize, is_se, save_tmp, statfile)

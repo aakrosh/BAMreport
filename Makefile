@@ -6,7 +6,7 @@ all:
 
 install:
 	mkdir -p bin
-	cp src/BAMreport src/BAMreport.R src/bamstats bin/
+	cp src/BAMreport src/BAMreport.R src/bamstats src/VERSION bin/ 
 
 clean:
 	-rm -rf bin
