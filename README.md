@@ -25,12 +25,20 @@ These tools should work on any standard 64 bit Linux environment with
 * GCC
 * Python (version >= 2.7.6)
 
+## INSTALLATION:
+Type
+```bash
+make && make install
+```
+
+to install the binaries into the bin directory.
+
 ## TEST DATA
 The test dataset includes a BAM file and a fasta reference file. Run the tool 
 on the dataset by running the following:
 
 ```
-    ./../src/BAMreport -w 100  reference.fa alignments.bam
+make
 ```
 
 This should create a file "report.pdf" which should have the output similar to 
