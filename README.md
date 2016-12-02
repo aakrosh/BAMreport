@@ -32,7 +32,9 @@ These tools should work on any standard 64 bit Linux environment with
 ## INSTALLATION:
 Type
 ```bash
-make && make install
+git clone recursive git@github.com:aakrosh/BAMreport.git
+make
+make install
 ```
 
 to install the binaries into the bin directory.
