@@ -1,11 +1,14 @@
 #!/usr/bin/env Rscript
 
 library(MASS)
+library(grid)
+library(gtable)
+library(gridExtra)
 
 ## Default when nothing is passed
 args = commandArgs(trailingOnly = TRUE)
 if(length(args) == 0){
-    args <- c("--help")    
+    args = c("--help")    
 }
 
 ## Help section
@@ -25,6 +28,7 @@ if("--help" %in% args) {
       --fclip=someValue   - char, name of the file with 5' clipping info.
       --mm=someValue      - char, name of the file with mismatch info.
       --indel=someValue   - char, name of the file with indel info.
+      --verifybamid=someValue - char, name of the file with verifyBamId info.
       --help              - print this text
  
       Example:
@@ -34,10 +38,10 @@ if("--help" %in% args) {
 }
 
 ## Parse arguments (we expect the form --arg=value)
-parseArgs <- function(x) strsplit(sub("^--", "", x), "=")
-argsDF <- as.data.frame(do.call("rbind", parseArgs(args)))
-argsL <- as.list(as.character(argsDF$V2))
-names(argsL) <- argsDF$V1
+parseArgs = function(x) strsplit(sub("^--", "", x), "=")
+argsDF = as.data.frame(do.call("rbind", parseArgs(args)))
+argsL = as.list(as.character(argsDF$V2))
+names(argsL) = argsDF$V1
  
 # set defaults
 if(is.null(argsL$stats)) {
@@ -73,6 +77,9 @@ if(is.null(argsL$mm)) {
 if(is.null(argsL$indel)) {
     argsL$indel = NULL
 }
+if(is.null(argsL$verifybamid)) {
+    argsL$verifybamid = NULL
+}
 
 # the output file
 pdf(argsL$output, width = 14, height = 10)
@@ -91,6 +98,30 @@ if (!is.null(argsL$stats)) {
         mtext(l, side = 3, line = indx, adj = 0)
         indx = indx - 1
     }
+}
+
+# copy the output from verifyBamId
+# --------------------------------
+if (!is.null(argsL$verifybamid)) {
+    verifybamid = argsL$verifybamid
+    df = read.table(verifybamid, comment.char = "!", header = F)
+    names(df) = c("property", "value")
+    
+    table = tableGrob(df)
+    title = textGrob("selfSM - verifyBamId",gp=gpar(fontsize=15))
+    footnote = textGrob("", x=0, hjust=0, gp=gpar( fontface="italic"))
+
+    padding = unit(0.5,"line")
+    table = gtable_add_rows(table, 
+                         heights = grobHeight(title) + padding,
+                         pos = 0)
+    table = gtable_add_rows(table, 
+                         heights = grobHeight(footnote)+ padding)
+    table = gtable_add_grob(table, list(title, footnote),
+                         t=c(1, nrow(table)), l=c(1,2), 
+                         r=ncol(table))
+    grid.newpage()
+    grid.draw(table)
 }
 
 # create the read length distribution

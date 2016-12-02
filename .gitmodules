@@ -4,3 +4,6 @@
 [submodule "verifyBamID"]
 	path = verifyBamID
 	url = https://github.com/statgen/verifyBamID.git
+[submodule "libStatGen"]
+	path = libStatGen
+	url = https://github.com/statgen/libStatGen.git
