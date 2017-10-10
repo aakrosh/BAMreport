@@ -1,9 +1,9 @@
 [submodule "htslib"]
 	path = htslib
-	url = https://github.com/samtools/htslib.git
+	url = git@github.com:samtools/htslib.git
 [submodule "verifyBamID"]
 	path = verifyBamID
-	url = https://github.com/statgen/verifyBamID.git
+	url = git@github.com:statgen/verifyBamID.git
 [submodule "libStatGen"]
 	path = libStatGen
-	url = https://github.com/statgen/libStatGen.git
+	url = git@github.com:statgen/libStatGen.git
