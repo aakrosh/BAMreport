@@ -1,6 +1,9 @@
 #!/usr/bin/env python
 
 """
+Prepare a report for an alignment file in BAM format.
+Version: %(scriptVersion)s
+
     usage:
         BAMreport [options]  reference.fa sample.bam
 
@@ -12,12 +15,20 @@
         -s,--single-end: the sequences are not paired-end or mate-pairs [PE]
         -t,--stats: add the stat info to this file [None]
         -i,--inserts: add the insert length info to this file [None]
+        -g,--genotypes: external genotype file to use with verifyBamID [None]
+        -v,--version: print version and quit
+
+Notes:
+    Check for contamination using verifyBamID is not done by default. In order
+    to enable that please supply an external VCF file of genotypes using -g.
+        
 """
 
-from sys import argv, stderr, stdin, exit, stdout
+from sys import argv, stderr, stdin, exit, stdout, path
 from getopt import getopt, GetoptError
-from tempfile import mkstemp
+from tempfile import mkstemp, mkdtemp
 from subprocess import call
+from itertools import izip
 
 import os
 
@@ -41,6 +52,12 @@ def RemoveTempFile(name):
         print >> stderr, "Removal of %s failed: %s" % (name, e)
         exit(4)
 
+def CreateTempDir():
+    """Use tempfile.mkdtemp to create a temporary directory
+    """
+    name = mkdtemp()
+    return name    
+
 def RunCommand(command):
     if debug_flag: print >> stderr, " ".join(command)
     try:
@@ -50,7 +67,10 @@ def RunCommand(command):
         exit(5)
 
 def main(refname, bamname, output, windowsize, is_se, save_tmp, statfile,
-        insertsfile):
+        insertsfile, genotypes_file):
+    with open(path[0]+'/VERSION',"r") as version_file:
+        version = version_file.read().strip()
+
     # run bamstats to get the relevant information
     DIR = os.path.dirname(os.path.realpath(__file__))
     if statfile == None:
@@ -99,6 +119,47 @@ def main(refname, bamname, output, windowsize, is_se, save_tmp, statfile,
                    refname, bamname]
     RunCommand(command)
 
+    # do I have to run verifyBamID for contamination
+    if genotypes_file:
+        # what is the maximum depth I should consider for contamination check
+        maxfreq = -1
+        with open(covName,'r') as f:
+            for line in f:
+                coverage,freq = line.strip().split("\t")
+                coverage = int(coverage)
+                freq = int(freq)
+                if coverage > 5 and freq > maxfreq:
+                    maxfreq = freq 
+                    avcov = coverage
+
+        if maxfreq == -1:
+            print >> stderr, "Coverage mode is less than 5X, coverage cutoff for contamination analyses: 20"
+            maxcov = 20
+        else:
+            maxcov = 2 * avcov
+            print >> stderr, "Coverage cutoff for contamination analyses: %d" \
+                   % maxcov
+            
+        tmpdir = CreateTempDir()
+        command = ["%s/verifyBamID" % DIR,
+                   "--vcf", genotypes_file,
+                   "--bam", bamname,
+                   "--out", "%s/log" % tmpdir,
+                   "--best",
+                   "--maxDepth", str(maxcov),
+                   "--noPhoneHome",
+                   "--precise",
+                   "--chip-none"]
+        RunCommand(command)
+
+        with open("%s/log.selfSM" % tmpdir, 'r') as f:
+            lines = f.readlines()
+            header = lines[0].strip().split("\t")
+            values = lines[1].strip().split("\t")
+        with open("%s/log.updatedSM" % tmpdir, 'w') as f: 
+            for h,v in izip(header,values):
+                print >> f, "\t".join([str(h), str(v)])      
+
     # make the plots
     if (is_se):
          command = ["%s/BAMreport.R" % DIR,
@@ -125,6 +186,8 @@ def main(refname, bamname, output, windowsize, is_se, save_tmp, statfile,
                    "--indel=%s" % indelName,
                    "--rcovs=%s" % covName,
                    "--output=%s" % output]
+    if genotypes_file:
+        command.extend(["--verifybamid=%s/log.updatedSM" % tmpdir])
     RunCommand(command)
 
     if save_tmp:
@@ -142,13 +205,16 @@ def main(refname, bamname, output, windowsize, is_se, save_tmp, statfile,
         RemoveTempFile(covName)
 
 if __name__ == "__main__":
+    with open(path[0]+'/VERSION',"r") as version_file:
+        version = version_file.read().strip()
+
     try:
-        opts, args = getopt(argv[1:], "hdr:w:spt:i:",
+        opts, args = getopt(argv[1:], "hdr:w:spt:i:vg:",
         ["help","debug","report=","windowsize=","single-end","preserve","stats=",
-        "inserts="])
+        "inserts=", "version","genotypes="])
     except GetoptError, err:
         print str(err)
-        print >> stderr, __doc__
+        print >> stderr, __doc__ % {'scriptVersion' : version}
         exit(2) 
 
     output = "report.pdf"
@@ -157,10 +223,13 @@ if __name__ == "__main__":
     save_tmp = False
     statfile = None
     insertsfile = None
+    print_version = False
+    check_contam = False
+    genotypes_file = None
 
     for o, a in opts:
         if o in ("-h", "--help"):
-            print >> stderr, __doc__
+            print >> stderr, __doc__ % {'scriptVersion' : version}
             exit()
         elif o in ("-d", "--debug"):
             debug_flag = True
@@ -176,12 +245,23 @@ if __name__ == "__main__":
             statfile = a
         elif o in ("-i", "--inserts"):
             insertsfile = a
+        elif o in ("-v", "--version"):
+            print_version = True
+        elif o in ("-g", "--genotypes"):
+            genotypes_file = a
         else:
             assert False, "unhandled option"
 
+    # Do we want to print the version and quit?
+    if print_version == True:
+        print >> stderr, "Program: BAMreport"
+        print >> stderr, "Version: %s" % version
+        print >> stderr, "Contact: Aakrosh Ratan (ratan@bx.psu.edu)"
+        exit(0)
+
     if len(args) != 2:
-        print >> stderr, __doc__
+        print >> stderr, __doc__ % {'scriptVersion' : version}
         exit(3)
 
     main(args[0], args[1], output, windowsize, is_se, save_tmp, statfile,
-            insertsfile)
+            insertsfile, genotypes_file)
