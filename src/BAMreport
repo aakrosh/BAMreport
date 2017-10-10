@@ -11,6 +11,7 @@
         -w,--windowsize: windowsize used in calculating GC and coverage [1000000]
         -s,--single-end: the sequences are not paired-end or mate-pairs [PE]
         -t,--stats: add the stat info to this file [None]
+        -i,--inserts: add the insert length info to this file [None]
 """
 
 from sys import argv, stderr, stdin, exit, stdout
@@ -48,7 +49,8 @@ def RunCommand(command):
         print >> stderr, "Execution of %s failed: %s", (command,e)
         exit(5)
 
-def main(refname, bamname, output, windowsize, is_se, save_tmp, statfile):
+def main(refname, bamname, output, windowsize, is_se, save_tmp, statfile,
+        insertsfile):
     # run bamstats to get the relevant information
     DIR = os.path.dirname(os.path.realpath(__file__))
     if statfile == None:
@@ -59,7 +61,10 @@ def main(refname, bamname, output, windowsize, is_se, save_tmp, statfile):
     qualName  = CreateTempFile()
     covName   = CreateTempFile()
     gccovName = CreateTempFile()
-    insName   = CreateTempFile()
+    if insertsfile == None:
+        insName   = CreateTempFile()
+    else:
+        insName = insertsfile
     rlName    = CreateTempFile()
     fclipName = CreateTempFile()
     mmName    = CreateTempFile()
@@ -129,7 +134,7 @@ def main(refname, bamname, output, windowsize, is_se, save_tmp, statfile):
         RemoveTempFile(rlName)
         RemoveTempFile(nucName)
         RemoveTempFile(qualName)
-        RemoveTempFile(insName)
+        if insertsfile == None: RemoveTempFile(insName)
         RemoveTempFile(gccovName)
         RemoveTempFile(fclipName)
         RemoveTempFile(mmName)
@@ -138,8 +143,9 @@ def main(refname, bamname, output, windowsize, is_se, save_tmp, statfile):
 
 if __name__ == "__main__":
     try:
-        opts, args = getopt(argv[1:], "hdr:w:spt:",
-        ["help","debug","report=","windowsize=","single-end","preserve","stats="])
+        opts, args = getopt(argv[1:], "hdr:w:spt:i:",
+        ["help","debug","report=","windowsize=","single-end","preserve","stats=",
+        "inserts="])
     except GetoptError, err:
         print str(err)
         print >> stderr, __doc__
@@ -150,6 +156,7 @@ if __name__ == "__main__":
     is_se = False
     save_tmp = False
     statfile = None
+    insertsfile = None
 
     for o, a in opts:
         if o in ("-h", "--help"):
@@ -167,6 +174,8 @@ if __name__ == "__main__":
             save_tmp = True
         elif o in ("-t", "--stats"):
             statfile = a
+        elif o in ("-i", "--inserts"):
+            insertsfile = a
         else:
             assert False, "unhandled option"
 
@@ -174,4 +183,5 @@ if __name__ == "__main__":
         print >> stderr, __doc__
         exit(3)
 
-    main(args[0], args[1], output, windowsize, is_se, save_tmp, statfile)
+    main(args[0], args[1], output, windowsize, is_se, save_tmp, statfile,
+            insertsfile)
